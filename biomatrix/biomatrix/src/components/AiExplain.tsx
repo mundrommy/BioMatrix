@@ -58,11 +58,15 @@ export function AiExplain({ assessment, vitals, env, missionDay }: AiExplainProp
     };
 
     try {
+      // Never wait more than 30 s for an answer.
+      const controller = new AbortController();
+      const timer = window.setTimeout(() => controller.abort(), 30000);
       const res = await fetch('/api/explain', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
-      });
+        signal: controller.signal,
+      }).finally(() => window.clearTimeout(timer));
       const isJson = res.headers.get('content-type')?.includes('application/json') ?? false;
       const data = isJson ? ((await res.json().catch(() => null)) as { text?: string; error?: string } | null) : null;
       if (!res.ok || !data?.text) {
@@ -71,13 +75,25 @@ export function AiExplain({ assessment, vitals, env, missionDay }: AiExplainProp
             ? 'The AI explanation works on the online version of BioMatrix (hosted on Vercel). It is not available when the app runs only on this computer.'
             : data?.error === 'missing_key'
               ? 'The AI is not set up yet: the GEMINI_API_KEY setting is missing on the server.'
+              : data?.error === 'timeout'
+                ? 'The AI took too long to answer. Please try again.'
+                : data?.error === 'busy'
+                  ? 'Google\'s AI is very busy right now. Please try again in a minute.'
+                  : data?.error === 'bad_key'
+                    ? 'The AI key was rejected. Check GEMINI_API_KEY in the Vercel settings.'
               : 'The AI could not answer right now. Please try again in a minute.';
         setState({ kind: 'error', message });
         return;
       }
       setState({ kind: 'done', text: data.text, at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
-    } catch {
-      setState({ kind: 'error', message: 'No connection to the AI service. Check the internet connection and try again.' });
+    } catch (err) {
+      const aborted = (err as { name?: string })?.name === 'AbortError';
+      setState({
+        kind: 'error',
+        message: aborted
+          ? 'The AI took too long to answer. Please try again.'
+          : 'No connection to the AI service. Check the internet connection and try again.',
+      });
     }
   };
 
