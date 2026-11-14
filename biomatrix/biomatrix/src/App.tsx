@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AstronautMap } from './components/AstronautMap';
 import { GuidanceDrawer } from './components/GuidanceDrawer';
 import { Header } from './components/Header';
+import { SpaceBackground } from './components/SpaceBackground';
 import { IntroSplash } from './components/IntroSplash';
 import { TrendPanel } from './components/TrendPanel';
 import { TriageBanner } from './components/TriageBanner';
@@ -143,7 +144,8 @@ export default function App() {
   const finishIntro = useCallback(() => setIntro(false), []);
 
   return (
-    <div className="telemetry-grid min-h-screen bg-slate-950 text-slate-200">
+    <div className="relative min-h-screen text-slate-200">
+      <SpaceBackground />
       <Header
         env={env}
         missionDay={state.missionDay}
@@ -155,14 +157,20 @@ export default function App() {
         onReset={reset}
       />
 
-      <main className={`mx-auto grid max-w-[1500px] grid-cols-1 gap-4 p-4 xl:grid-cols-12 ${intro ? '' : 'dash-reveal'}`}>
+      <main className={`relative z-10 mx-auto grid max-w-[1500px] grid-cols-1 gap-4 p-4 xl:grid-cols-12 ${intro ? '' : 'dash-reveal'}`}>
         <div className="flex min-w-0 flex-col gap-4 xl:col-span-7">
           <Panel
             title="Astronaut body map"
             icon={<Activity className="h-4 w-4 text-sky-300" aria-hidden="true" />}
             right={<span className="text-[11px] text-slate-500">Click a zone for medical guidance</span>}
           >
-            <AstronautMap assessment={assessment} vitals={state.vitals} selected={selectedZone} onSelect={setSelectedZone} />
+            <AstronautMap
+              assessment={assessment}
+              vitals={state.vitals}
+              selected={selectedZone}
+              onSelect={setSelectedZone}
+              onClear={closeDrawer}
+            />
             <p className="mt-4 rounded-md border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-400">
               <span className="font-semibold text-slate-200">{env.name}:</span> {env.note.text}{' '}
               <SourceTag source={env.note.source} /> {env.magnetosphere.text} <SourceTag source={env.magnetosphere.source} />
@@ -198,7 +206,7 @@ export default function App() {
         </div>
       </main>
 
-      <footer className="border-t border-slate-800 bg-slate-950/90">
+      <footer className="relative z-10 border-t border-slate-800 bg-slate-950/70 backdrop-blur-sm">
         <div className="mx-auto max-w-[1500px] space-y-3 px-4 py-4 text-xs text-slate-400">
           <p className="rounded-md border border-amber-400/30 bg-amber-400/10 px-3 py-2 font-medium text-amber-100">{DISCLAIMER}</p>
 

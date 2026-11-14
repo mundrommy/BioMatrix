@@ -93,7 +93,7 @@ export function Panel({
   className?: string;
 }) {
   return (
-    <section className={`rounded-xl border border-slate-800 bg-slate-900/80 shadow-lg shadow-black/30 ${className}`}>
+    <section className={`rounded-xl border border-slate-700/60 bg-slate-900/60 shadow-lg shadow-black/40 backdrop-blur-md ${className}`}>
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 px-4 py-2.5">
         <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-300">
           {icon}

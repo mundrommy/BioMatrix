@@ -30,7 +30,7 @@ interface HeaderProps {
 
 export function Header({ env, missionDay, presetId, live, onEnvChange, onPreset, onLiveChange, onReset }: HeaderProps) {
   return (
-    <header className="border-b border-slate-800 bg-slate-950/90 backdrop-blur">
+    <header className="relative z-20 border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md">
       <div className="mx-auto flex max-w-[1500px] flex-col gap-3 px-4 py-3">
         {/* Row 1: brand, environment, link status */}
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3">

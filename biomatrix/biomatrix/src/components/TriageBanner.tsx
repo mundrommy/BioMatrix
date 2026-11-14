@@ -32,7 +32,7 @@ export function TriageBanner({ triage, env }: { triage: TriageResult; env: Envir
   const style = LEVEL_STYLE[triage.level];
 
   return (
-    <section aria-live="polite" className={`rounded-xl border-2 shadow-lg shadow-black/30 ${style.box}`}>
+    <section aria-live="polite" className={`rounded-xl border-2 shadow-lg shadow-black/30 backdrop-blur-md ${style.box}`}>
       <div className="flex items-start gap-3 px-4 py-3">
         <span className={`mt-0.5 shrink-0 ${style.accent}`}>{style.icon}</span>
         <div className="min-w-0 flex-1">

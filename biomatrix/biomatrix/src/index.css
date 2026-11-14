@@ -338,3 +338,63 @@ input[type="range"] {
   .logo-hex { fill-opacity: 0.1; }
   .logo-dots { opacity: 1; animation: none; }
 }
+
+/* ============================ Space background ============================ */
+
+.space-nebula {
+  background:
+    radial-gradient(ellipse 60% 45% at 12% 18%, rgba(124, 58, 237, 0.22), transparent 70%),
+    radial-gradient(ellipse 50% 40% at 88% 22%, rgba(14, 165, 233, 0.18), transparent 70%),
+    radial-gradient(ellipse 70% 50% at 70% 95%, rgba(20, 184, 166, 0.14), transparent 70%),
+    radial-gradient(ellipse 45% 35% at 30% 75%, rgba(219, 39, 119, 0.10), transparent 70%),
+    #020617;
+  animation: nebula-drift 40s ease-in-out infinite alternate;
+}
+@keyframes nebula-drift {
+  from { transform: scale(1) translate(0, 0); }
+  to { transform: scale(1.12) translate(-2%, 1.5%); }
+}
+
+/* A distant planet peeking in from the bottom-left corner */
+.space-planet {
+  width: 520px;
+  height: 520px;
+  left: -260px;
+  bottom: -300px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 70% 30%, #1e3a8a 0%, #0f172a 55%, #020617 75%);
+  box-shadow:
+    0 0 60px 10px rgba(56, 189, 248, 0.18),
+    inset -20px 20px 60px rgba(125, 211, 252, 0.25);
+  opacity: 0.85;
+}
+
+/* ============================ Organ zoom ============================ */
+
+/* When zoomed into a zone, the other organs fade back */
+.is-zoomed .zone:not(.zone-selected):not(.zone-immune) .organ {
+  opacity: 0.18;
+}
+.focus-immune .zone:not(.zone-immune) .organ {
+  opacity: 0.35;
+}
+.zone .organ {
+  transition: filter 0.25s ease, stroke 0.3s ease, opacity 0.5s ease;
+}
+
+/* Labels fade in after the camera arrives */
+.zoom-labels {
+  opacity: 0;
+  animation: zoom-labels-in 0.45s ease-out 0.55s forwards;
+}
+@keyframes zoom-labels-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.zoom-badge {
+  animation: zoom-labels-in 0.35s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .space-nebula, .zoom-labels, .zoom-badge { animation: none; opacity: 1; }
+}

@@ -41,13 +41,18 @@ export function GuidanceDrawer({ zoneId, assessment, vitals, onClose }: DrawerPr
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-40 flex justify-end">
-      <button type="button" aria-label="Close guidance" className="absolute inset-0 cursor-default bg-black/60" onClick={onClose} />
+    <div className="pointer-events-none fixed inset-0 z-40 flex justify-end">
+      <button
+        type="button"
+        aria-label="Close guidance"
+        className="pointer-events-auto absolute inset-0 cursor-default bg-black/60 xl:hidden"
+        onClick={onClose}
+      />
       <aside
         role="dialog"
-        aria-modal="true"
+        aria-modal="false"
         aria-label={`Medical guidance: ${zone.name}`}
-        className="drawer-in relative flex h-full w-full max-w-xl flex-col border-l border-slate-700 bg-slate-900 shadow-2xl shadow-black"
+        className="drawer-in pointer-events-auto relative flex h-full w-full max-w-xl flex-col border-l border-slate-700 bg-slate-900/95 shadow-2xl shadow-black backdrop-blur-md"
       >
         <header className="flex items-start justify-between gap-3 border-b border-slate-800 px-5 py-4">
           <div>

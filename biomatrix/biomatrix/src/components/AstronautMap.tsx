@@ -1,5 +1,5 @@
-import { Bone, Brain, ChevronRight, Droplets, HeartPulse, ShieldAlert } from 'lucide-react';
-import type { KeyboardEvent, ReactNode } from 'react';
+import { Bone, Brain, ChevronRight, Droplets, HeartPulse, ShieldAlert, ZoomOut } from 'lucide-react';
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import {
   METRICS,
   ZONES,
@@ -25,6 +25,163 @@ interface MapProps {
   vitals: Vitals;
   selected: ZoneId | null;
   onSelect: (zone: ZoneId) => void;
+  /** Closes the guidance and zooms back out to the full body. */
+  onClear: () => void;
+}
+
+// ---------------------------------------------------------------------------
+// Zoom: each zone has its own camera box [x, y, width, height] in SVG units.
+// All boxes keep the 320 x 600 shape of the figure, so nothing is stretched.
+// ---------------------------------------------------------------------------
+
+type Box = [number, number, number, number];
+
+const FULL_VIEW: Box = [0, 0, 320, 600];
+
+const ZOOM_VIEW: Record<ZoneId, Box> = {
+  neuro: [100, -12, 120, 225],
+  cardio: [85, 40, 150, 281],
+  metabolic: [85, 130, 150, 281],
+  musculo: [45, 165, 230, 431],
+  immune: FULL_VIEW,
+};
+
+/** Smoothly moves the SVG camera to a new box (ease-in-out, about 0.7 s). */
+function useAnimatedViewBox(target: Box, duration = 700): Box {
+  const [box, setBox] = useState<Box>(target);
+  const current = useRef<Box>(target);
+  const [tx, ty, tw, th] = target;
+
+  useEffect(() => {
+    const to: Box = [tx, ty, tw, th];
+    const from = current.current;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) {
+      current.current = to;
+      setBox(to);
+      return;
+    }
+    const start = performance.now();
+    let frame = 0;
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      const next = from.map((v, i) => v + (to[i] - v) * e) as Box;
+      current.current = next;
+      setBox(next);
+      if (t < 1) frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [tx, ty, tw, th, duration]);
+
+  return box;
+}
+
+// ---------------------------------------------------------------------------
+// Labels shown on the zoomed organs, with the astronaut's live values
+// ---------------------------------------------------------------------------
+
+interface OrganLabel {
+  title: string;
+  value: string;
+  status: Status;
+  /** Point on the organ the leader line goes to (optional). */
+  anchor?: [number, number];
+  side: 'left' | 'right';
+  /** Top of the label, in SVG units (same coordinates as the body drawing). */
+  y: number;
+}
+
+function organLabels(zone: ZoneId, v: Vitals, a: Assessment): OrganLabel[] {
+  const m = a.metrics;
+  const val = (id: Parameters<typeof formatMetric>[0]) => formatMetric(id, v);
+  const worst = (...st: Status[]): Status => (st.includes('red') ? 'red' : st.includes('yellow') ? 'yellow' : 'green');
+  switch (zone) {
+    case 'neuro':
+      return [
+        { title: 'Brain', value: `Reaction ${val('reactionTime')} ms`, status: m.reactionTime.status, anchor: [150, 36], side: 'left', y: 0 },
+        { title: 'Mood', value: `${val('mood')}/10`, status: m.mood.status, anchor: [146, 44], side: 'left', y: 26 },
+        { title: 'Sleep', value: `${val('sleep')} h last night`, status: m.sleep.status, anchor: [170, 36], side: 'right', y: 0 },
+        { title: 'Eyes (SANS)', value: `Vision: ${val('vision')}`, status: m.vision.status, anchor: [171, 61], side: 'right', y: 36 },
+        { title: 'Optic nerves', value: '~70% of ISS crew: eye swelling', status: m.vision.status, anchor: [156, 56], side: 'left', y: 104 },
+      ];
+    case 'cardio':
+      return [
+        { title: 'Airway', value: `${val('respRate')} breaths/min`, status: m.respRate.status, anchor: [160, 108], side: 'left', y: 58 },
+        { title: 'Lungs', value: `SpO2 ${val('spo2')} %`, status: m.spo2.status, anchor: [186, 150], side: 'right', y: 78 },
+        {
+          title: 'Heart',
+          value: `${val('heartRate')} bpm | BP ${val('bloodPressure')}`,
+          status: worst(m.heartRate.status, m.bloodPressure.status),
+          anchor: [168, 172],
+          side: 'right',
+          y: 216,
+        },
+        { title: 'Cabin air', value: `CO2 ${val('cabinCo2')} ppm`, status: m.cabinCo2.status, anchor: [134, 176], side: 'left', y: 240 },
+      ];
+    case 'metabolic':
+      return [
+        { title: 'Liver', value: `Glucose ${val('glucose')} mg/dL`, status: m.glucose.status, anchor: [138, 212], side: 'left', y: 150 },
+        { title: 'Kidneys', value: `Fluids ${val('hydration')} L today`, status: m.hydration.status, anchor: [178, 250], side: 'right', y: 150 },
+        { title: 'Body temperature', value: `${val('temperature')} °C`, status: m.temperature.status, side: 'left', y: 330 },
+        { title: 'Kidney stones', value: 'Risk rises with dehydration', status: m.hydration.status, anchor: [144, 252], side: 'left', y: 285 },
+      ];
+    case 'musculo':
+      return [
+        { title: 'Pelvis & spine', value: 'Bone loss 1–1.5% / month', status: a.zones.musculo, anchor: [150, 300], side: 'left', y: 180 },
+        { title: 'Thigh bone', value: `Exercise ${val('exercise')} min today`, status: m.exercise.status, anchor: [184, 360], side: 'right', y: 300 },
+        { title: 'Shin bone', value: 'Load-bearing bone', status: a.zones.musculo, anchor: [184, 480], side: 'right', y: 470 },
+      ];
+    case 'immune':
+      return [
+        { title: 'Radiation dose', value: `${val('radiationDose')} mSv`, status: m.radiationDose.status, side: 'left', y: 120 },
+        { title: 'Solar storm', value: val('spe'), status: m.spe.status, side: 'right', y: 120 },
+      ];
+  }
+}
+
+/** Draws the labels for the zoomed zone. Sizes are in SVG units and scale with the zoom. */
+function ZoomLabels({ zone, vitals, assessment }: { zone: ZoneId; vitals: Vitals; assessment: Assessment }) {
+  const target = ZOOM_VIEW[zone];
+  const fs = target[2] / 25; // font size: about 12-13 px on screen at every zoom level
+  const pad = fs * 0.6;
+  return (
+    <g key={zone} className="zoom-labels" pointerEvents="none" aria-hidden="true" fontFamily="ui-sans-serif, system-ui, sans-serif">
+      {organLabels(zone, vitals, assessment).map((label) => {
+        const color = STATUS_STYLE[label.status].hex;
+        const w = Math.max(label.title.length * fs * 0.62, label.value.length * fs * 0.5) + pad * 2 + fs * 0.9;
+        const h = fs * 2.7;
+        const x = label.side === 'left' ? target[0] + fs * 0.4 : target[0] + target[2] - fs * 0.4 - w;
+        const y = label.y + fs * 0.6;
+        const edgeX = label.side === 'left' ? x + w : x;
+        return (
+          <g key={label.title}>
+            {label.anchor && (
+              <>
+                <path
+                  d={`M${edgeX} ${y + h / 2} L${(edgeX + label.anchor[0]) / 2} ${y + h / 2} L${label.anchor[0]} ${label.anchor[1]}`}
+                  fill="none"
+                  stroke={color}
+                  strokeWidth={fs * 0.12}
+                  strokeOpacity="0.9"
+                />
+                <circle cx={label.anchor[0]} cy={label.anchor[1]} r={fs * 0.32} fill={color} />
+              </>
+            )}
+            <rect x={x} y={y} width={w} height={h} rx={fs * 0.5} fill="#020617" fillOpacity="0.88" stroke={color} strokeWidth={fs * 0.1} />
+            <circle cx={x + pad + fs * 0.25} cy={y + fs * 0.95} r={fs * 0.25} fill={color} />
+            <text x={x + pad + fs * 0.75} y={y + fs * 1.25} fontSize={fs} fontWeight="700" fill="#f1f5f9">
+              {label.title}
+            </text>
+            <text x={x + pad} y={y + fs * 2.3} fontSize={fs * 0.82} fill="#cbd5e1">
+              {label.value}
+            </text>
+          </g>
+        );
+      })}
+    </g>
+  );
 }
 
 /** One clickable zone of the SVG. Works with mouse, touch and keyboard. */
@@ -127,13 +284,20 @@ const OUTLINE_COLOR: Record<Status, string> = {
  * See-through human figure with glowing outline, stars inside and visible organs.
  * The 5 body zones take their status colour (green, amber or red).
  */
-function AstronautSvg({ assessment, selected, onSelect }: Omit<MapProps, 'vitals'>) {
+function AstronautSvg({ assessment, vitals, selected, onSelect }: Omit<MapProps, 'onClear'>) {
   const z = assessment.zones;
   const c = (zone: ZoneId) => STATUS_STYLE[z[zone]].hex;
   const outline = OUTLINE_COLOR[z.immune];
+  const box = useAnimatedViewBox(selected ? ZOOM_VIEW[selected] : FULL_VIEW);
+  const focusClass = selected ? (selected === 'immune' ? 'focus-immune' : 'is-zoomed') : '';
 
   return (
-    <svg viewBox="0 0 320 600" className="mx-auto h-auto w-full max-w-[320px]" role="group" aria-label="Human body map with 5 clickable zones">
+    <svg
+      viewBox={box.join(' ')}
+      className={`mx-auto h-auto w-full max-w-[380px] ${focusClass}`}
+      role="group"
+      aria-label="Human body map with 5 clickable zones"
+    >
       <defs>
         <radialGradient id="lm-body-fill" cx="50%" cy="38%" r="70%">
           <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.30" />
@@ -297,14 +461,34 @@ function AstronautSvg({ assessment, selected, onSelect }: Omit<MapProps, 'vitals
           <path fill="none" strokeWidth="1" strokeOpacity="0.7" d="M154 60 C 156 56 158 53 160 51 M166 60 C 164 56 162 53 160 51" />
         </g>
       </ZoneGroup>
+
+      {/* Live labels on the zoomed organs */}
+      {selected && <ZoomLabels zone={selected} vitals={vitals} assessment={assessment} />}
     </svg>
   );
 }
 
-export function AstronautMap({ assessment, vitals, selected, onSelect }: MapProps) {
+export function AstronautMap({ assessment, vitals, selected, onSelect, onClear }: MapProps) {
   return (
-    <div className="grid grid-cols-1 items-center gap-5 md:grid-cols-[minmax(240px,320px)_minmax(0,1fr)]">
-      <AstronautSvg assessment={assessment} selected={selected} onSelect={onSelect} />
+    <div className="grid grid-cols-1 items-center gap-5 md:grid-cols-[minmax(260px,380px)_minmax(0,1fr)]">
+      <div className="relative">
+        <AstronautSvg assessment={assessment} vitals={vitals} selected={selected} onSelect={onSelect} />
+        {selected && (
+          <div className="zoom-badge pointer-events-none absolute left-0 right-0 top-0 flex flex-wrap items-center justify-between gap-2">
+            <span className="pointer-events-auto rounded-md border border-slate-700 bg-slate-950/80 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-sky-200">
+              {selected === 'immune' ? 'Whole body' : `Zoom: ${ZONES[selected].organs}`}
+            </span>
+            <button
+              type="button"
+              onClick={onClear}
+              className="pointer-events-auto flex min-h-9 items-center gap-1.5 rounded-md border border-sky-400/50 bg-slate-950/80 px-3 text-xs font-semibold text-sky-100 transition hover:-translate-y-0.5 hover:bg-sky-400/20"
+            >
+              <ZoomOut className="h-4 w-4" aria-hidden="true" />
+              Full body
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* The same 5 zones as normal buttons: easier to read and fully keyboard accessible */}
       <ul className="flex min-w-0 flex-col gap-2">
