@@ -7,6 +7,7 @@ import { DevicePanel } from './components/DevicePanel';
 import type { ConnectedDevice, DeviceReading } from './bluetooth/healthDevices';
 import { GuidanceDrawer } from './components/GuidanceDrawer';
 import { UiEffects } from './components/UiEffects';
+import { SurgeonReport } from './components/SurgeonReport';
 import { Header } from './components/Header';
 import { SpaceBackground } from './components/SpaceBackground';
 import { IntroSplash } from './components/IntroSplash';
@@ -100,6 +101,7 @@ export default function App() {
   const [intro, setIntro] = useState(true);
   const [now, setNow] = useState(() => new Date());
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   // Short "saved" message (visual feedback only).
   const [toast, setToast] = useState<string | null>(null);
   useEffect(() => {
@@ -242,6 +244,7 @@ export default function App() {
   const setMissionStart = (missionStart: string) => setState((s) => ({ ...s, missionStart }));
   const closeDrawer = useCallback(() => setSelectedZone(null), []);
   const finishIntro = useCallback(() => setIntro(false), []);
+  const closeReport = useCallback(() => setReportOpen(false), []);
 
   return (
     <div className="relative min-h-screen text-slate-200">
@@ -296,7 +299,7 @@ export default function App() {
             onDismiss={dismissReminder}
           />
 
-          <TriageBanner key={assessment.triage.level} triage={assessment.triage} env={env} />
+          <TriageBanner key={assessment.triage.level} triage={assessment.triage} env={env} onReport={() => setReportOpen(true)} />
 
           <AiExplain assessment={assessment} vitals={state.vitals} env={env} missionDay={missionDay} />
 
@@ -394,6 +397,21 @@ export default function App() {
           </svg>
           {toast}
         </div>
+      )}
+
+      {reportOpen && (
+        <SurgeonReport
+          assessment={assessment}
+          vitals={state.vitals}
+          symptoms={state.symptoms}
+          sources={state.sources}
+          env={env}
+          missionDay={missionDay}
+          missionStart={state.missionStart}
+          checkIns={state.checkIns}
+          savedAt={todayCheckIn?.savedAt ?? null}
+          onClose={closeReport}
+        />
       )}
 
       {intro && <IntroSplash onDone={finishIntro} />}

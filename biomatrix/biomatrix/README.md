@@ -25,6 +25,8 @@ The app helps an astronaut **gather** health indicators, **evaluate** them at a 
   because a reply from Earth can take 40+ minutes.
 - **Mission settings**: environment (ISS, Lunar Base, Mars Transit, Pressurized Rover) and mission start date,
   which sets the mission day.
+- **Flight surgeon report**: one button builds a full report (triage, out-of-range values, symptoms, all readings with
+  their source, recommended actions, last 7 check-ins) to print, save as PDF, download as text or copy.
 - **History trend chart** built from the saved check-ins.
 - **Check-in streak** counter and **in-app reminders** ("time to measure again") for out-of-range values.
 - **AI "Explain my results"**: a short plain-language summary from Google Gemini, limited to the app's own facts.
@@ -99,6 +101,7 @@ src/
     AstronautMap.tsx          Human body map with 5 clickable zones and organ zoom
     GuidanceDrawer.tsx        Medical guidance for the selected zone
     TriageBanner.tsx          Triage level, steps, telemetry summary
+    SurgeonReport.tsx         Flight surgeon report (print / PDF / text)
     VitalsPanel.tsx           Symptoms and all indicator inputs
     PVTGame.tsx               15-second reaction test
     TrendPanel.tsx            History chart (Recharts)

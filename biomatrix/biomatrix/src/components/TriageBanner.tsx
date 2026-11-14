@@ -1,4 +1,4 @@
-import { ChevronDown, CircleCheck, Siren, Stethoscope, Users } from 'lucide-react';
+import { ChevronDown, CircleCheck, FileText, Siren, Stethoscope, Users } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { METRICS, type Environment, type TriageLevel, type TriageResult } from '../data/spaceHealthEngine';
 import { FactLine, StatusBadge } from './ui';
@@ -26,7 +26,16 @@ const LEVEL_STYLE: Record<TriageLevel, { box: string; accent: string; icon: Reac
   },
 };
 
-export function TriageBanner({ triage, env }: { triage: TriageResult; env: Environment }) {
+export function TriageBanner({
+  triage,
+  env,
+  onReport,
+}: {
+  triage: TriageResult;
+  env: Environment;
+  /** Opens the flight surgeon report. */
+  onReport: () => void;
+}) {
   const [open, setOpen] = useState(true);
   const style = LEVEL_STYLE[triage.level];
 
@@ -99,6 +108,27 @@ export function TriageBanner({ triage, env }: { triage: TriageResult; env: Envir
           )}
         </div>
       )}
+
+      {/* Flight surgeon report: always available, highlighted when Earth must be contacted */}
+      <div className="flex flex-wrap items-center gap-3 border-t border-white/10 px-4 py-3">
+        <p className="min-w-0 flex-1 text-xs text-slate-300">
+          {triage.level === 3
+            ? 'Send this report to the flight surgeons on Earth.'
+            : 'A full report of your readings for the flight surgeon, ready to print or send.'}
+        </p>
+        <button
+          type="button"
+          onClick={onReport}
+          className={`btn-shine flex min-h-11 items-center gap-2 rounded-md border px-4 text-sm font-semibold transition hover:-translate-y-0.5 active:translate-y-0 ${
+            triage.level === 3
+              ? 'border-rose-300/60 bg-rose-500/30 text-rose-50 shadow-md shadow-rose-950/50 hover:bg-rose-500/45'
+              : 'border-slate-500/60 bg-slate-800/70 text-slate-100 hover:bg-slate-700/80'
+          }`}
+        >
+          <FileText className="h-4 w-4" aria-hidden="true" />
+          Flight surgeon report
+        </button>
+      </div>
     </section>
   );
 }

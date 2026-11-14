@@ -723,3 +723,56 @@ input[type="range"] {
   .toast { animation: none; transform: translate(-50%, 0); }
   .toast-ring, .toast-check { stroke-dashoffset: 0; animation: none; }
 }
+
+/* ============================ Flight surgeon report ============================ */
+
+.report-overlay {
+  animation: intro-fade-in 0.25s ease-out both;
+}
+.report-sheet {
+  animation: reveal-up 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* Printing / "Save as PDF": only the report is printed, on white paper */
+@media print {
+  body.printing-report #root > div > *:not(.report-overlay) {
+    display: none !important;
+  }
+  body.printing-report .report-overlay {
+    position: static !important;
+    display: block !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    background: none !important;
+    backdrop-filter: none !important;
+    animation: none !important;
+  }
+  body.printing-report .report-sheet {
+    max-width: none !important;
+    animation: none !important;
+  }
+  /* The page margin is 0 so the browser has no room for its own header and footer
+     (page address, date, page numbers). The report's padding gives the white margin
+     instead, repeated on every page. */
+  body.printing-report .print-report {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 14mm !important;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+  body.printing-report .no-print {
+    display: none !important;
+  }
+  body.printing-report,
+  body.printing-report #root {
+    background: #ffffff !important;
+    min-height: 0 !important;
+  }
+  body.printing-report .print-report tr {
+    break-inside: avoid;
+  }
+  @page {
+    margin: 0;
+  }
+}
