@@ -1,5 +1,5 @@
-import { Info } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Bluetooth, Info } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   METRICS,
   SYMPTOM_LABELS,
@@ -7,6 +7,7 @@ import {
   ZONE_ORDER,
   formatMetric,
   type Assessment,
+  type DeviceSources,
   type MetricId,
   type NumericVitalKey,
   type SliderField,
@@ -22,6 +23,10 @@ import { STATUS_STYLE, StatusBadge } from './ui';
 interface VitalsPanelProps {
   vitals: Vitals;
   symptoms: Symptoms;
+  /** Values that came from a connected device. */
+  sources: DeviceSources;
+  /** The device connection box, shown at the top. */
+  devicePanel?: ReactNode;
   assessment: Assessment;
   onVital: (key: NumericVitalKey, value: number) => void;
   onVision: (value: VisionCheck) => void;
@@ -89,6 +94,8 @@ function NumberField({
 export function VitalsPanel({
   vitals,
   symptoms,
+  sources,
+  devicePanel,
   assessment,
   onVital,
   onVision,
@@ -100,6 +107,7 @@ export function VitalsPanel({
     const metric = METRICS[id];
     const evaluation = assessment.metrics[id];
     const style = STATUS_STYLE[evaluation.status];
+    const fromDevice = metric.fields.map((f) => sources[f.key]).find(Boolean);
 
     return (
       <div key={id} className="rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-2">
@@ -111,6 +119,12 @@ export function VitalsPanel({
           </span>
           <StatusBadge status={evaluation.status} />
         </div>
+        {fromDevice && (
+          <p className="mt-0.5 flex items-center gap-1 text-[11px] text-sky-300">
+            <Bluetooth className="h-3 w-3" aria-hidden="true" />
+            From {fromDevice}
+          </p>
+        )}
 
         {evaluation.status !== 'green' && <p className={`mt-0.5 text-xs ${style.text}`}>{evaluation.note}</p>}
 
@@ -184,6 +198,8 @@ export function VitalsPanel({
 
   return (
     <div className="space-y-4">
+      {devicePanel}
+
       {/* Symptoms feed the blood pressure, heart rate, breathing and vision rules */}
       <fieldset className="rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-2">
         <legend className="px-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Symptoms right now</legend>

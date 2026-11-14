@@ -1,8 +1,10 @@
 import { Activity, BookOpen, SlidersHorizontal, Trash2, TrendingUp } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AiExplain } from './components/AiExplain';
 import { AstronautMap } from './components/AstronautMap';
 import { CheckInCard, type Reminder } from './components/CheckInCard';
+import { DevicePanel } from './components/DevicePanel';
+import type { ConnectedDevice, DeviceReading } from './bluetooth/healthDevices';
 import { GuidanceDrawer } from './components/GuidanceDrawer';
 import { Header } from './components/Header';
 import { SpaceBackground } from './components/SpaceBackground';
@@ -26,6 +28,7 @@ import {
   missionDayFor,
   toDayRecords,
   type CheckIn,
+  type DeviceSources,
   type EnvironmentId,
   type MetricId,
   type NumericVitalKey,
@@ -45,6 +48,8 @@ interface SavedState {
   /** Values currently in the form (not yet saved, or today's saved values). */
   vitals: Vitals;
   symptoms: Symptoms;
+  /** Which form values came from a connected device (device name). */
+  sources: DeviceSources;
   /** One saved check-in per day, oldest first. */
   checkIns: CheckIn[];
   reminders: Reminder[];
@@ -56,6 +61,7 @@ function freshState(): SavedState {
     missionStart: localDateKey(),
     vitals: { ...DEFAULT_VITALS },
     symptoms: { ...NO_SYMPTOMS },
+    sources: {},
     checkIns: [],
     reminders: [],
   };
@@ -75,7 +81,7 @@ function loadState(): SavedState {
         Array.isArray(saved.checkIns) &&
         Array.isArray(saved.reminders)
       ) {
-        return { ...saved, vitals: { ...DEFAULT_VITALS, ...saved.vitals } };
+        return { ...saved, vitals: { ...DEFAULT_VITALS, ...saved.vitals }, sources: saved.sources ?? {} };
       }
     }
   } catch {
@@ -93,6 +99,11 @@ export default function App() {
   const [intro, setIntro] = useState(true);
   const [now, setNow] = useState(() => new Date());
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Connected Bluetooth devices (they reconnect by pressing "Connect device" again after a reload).
+  const [devices, setDevices] = useState<ConnectedDevice[]>([]);
+  const [lastSeen, setLastSeen] = useState<Record<string, string>>({});
+  // Devices the user disconnected: late packets from them are ignored.
+  const disconnectedIds = useRef(new Set<string>());
 
   // A clock for reminders and for the date changing at midnight.
   useEffect(() => {
@@ -104,6 +115,9 @@ export default function App() {
   const missionDay = missionDayFor(today, state.missionStart);
   const env = ENVIRONMENTS[state.envId];
   const todayCheckIn = state.checkIns.find((c) => c.date === today) ?? null;
+  // Date the next save goes to: today, or a missed earlier day.
+  const [saveDate, setSaveDate] = useState(today);
+  const effectiveSaveDate = saveDate > today || saveDate < state.missionStart ? today : saveDate;
 
   // Previous check-ins (not today) feed the trend chart and the "two check-ins in a row" rule.
   const history = useMemo(
@@ -127,9 +141,18 @@ export default function App() {
 
   const saveCheckIn = () => {
     const savedAt = new Date().toISOString();
+    const date = effectiveSaveDate;
+    const isToday = date === today;
     setState((s) => {
-      const checkIn: CheckIn = { date: today, savedAt, vitals: { ...s.vitals }, symptoms: { ...s.symptoms } };
-      const checkIns = [...s.checkIns.filter((c) => c.date !== today), checkIn].sort((a, b) => a.date.localeCompare(b.date));
+      const checkIn: CheckIn = {
+        date,
+        savedAt,
+        vitals: { ...s.vitals },
+        symptoms: { ...s.symptoms },
+        sources: { ...s.sources },
+      };
+      const checkIns = [...s.checkIns.filter((c) => c.date !== date), checkIn].sort((a, b) => a.date.localeCompare(b.date));
+      if (!isToday) return { ...s, checkIns };
       // A "measure again" reminder for each out-of-range indicator: 4 h for caution, 1 h for critical.
       const reminders: Reminder[] = REMEASURABLE.flatMap((id: MetricId) => {
         const status = assessment.metrics[id].status;
@@ -138,7 +161,43 @@ export default function App() {
       });
       return { ...s, checkIns, reminders };
     });
+    if (!isToday) setSaveDate(today);
   };
+
+  // A value arrived from a Bluetooth device: fill it in and mark where it came from.
+  const onDeviceReading = useCallback((reading: DeviceReading, deviceName: string, deviceId: string) => {
+    if (disconnectedIds.current.has(deviceId)) return;
+    setLastSeen((l) => ({ ...l, [deviceId]: new Date().toISOString() }));
+    setState((s) => {
+      const vitals = { ...s.vitals };
+      const sources = { ...s.sources };
+      if (reading.kind === 'heartRate') {
+        vitals.heartRate = reading.bpm;
+        sources.heartRate = deviceName;
+      } else if (reading.kind === 'bloodPressure') {
+        vitals.systolic = reading.systolic;
+        vitals.diastolic = reading.diastolic;
+        sources.systolic = deviceName;
+        sources.diastolic = deviceName;
+      } else if (reading.kind === 'temperature') {
+        vitals.temperature = reading.celsius;
+        sources.temperature = deviceName;
+      } else if (reading.kind === 'spo2') {
+        vitals.spo2 = reading.percent;
+        sources.spo2 = deviceName;
+      }
+      return { ...s, vitals, sources };
+    });
+  }, []);
+
+  const onDeviceConnected = useCallback((device: ConnectedDevice) => {
+    disconnectedIds.current.delete(device.id);
+    setDevices((list) => [...list.filter((d) => d.id !== device.id), device]);
+  }, []);
+  const onDeviceDisconnected = useCallback((deviceId: string) => {
+    disconnectedIds.current.add(deviceId);
+    setDevices((list) => list.filter((d) => d.id !== deviceId));
+  }, []);
 
   const dismissReminder = (metric: MetricId) =>
     setState((s) => ({ ...s, reminders: s.reminders.filter((r) => r.metric !== metric) }));
@@ -148,13 +207,24 @@ export default function App() {
       setConfirmDelete(true);
       return;
     }
+    devices.forEach((d) => {
+      d.disconnect();
+      disconnectedIds.current.add(d.id);
+    });
+    setDevices([]);
     setState(freshState());
+    setSaveDate(today);
     setConfirmDelete(false);
     setSelectedZone(null);
   };
 
+  // A value typed or slid by hand is no longer "from device".
   const setVital = (key: NumericVitalKey, value: number) =>
-    setState((s) => ({ ...s, vitals: { ...s.vitals, [key]: value } }));
+    setState((s) => {
+      const sources = { ...s.sources };
+      delete sources[key];
+      return { ...s, vitals: { ...s.vitals, [key]: value }, sources };
+    });
   const setVision = (vision: VisionCheck) => setState((s) => ({ ...s, vitals: { ...s.vitals, vision } }));
   const setSpe = (spe: boolean) => setState((s) => ({ ...s, vitals: { ...s.vitals, spe } }));
   const setSymptom = (key: keyof Symptoms, value: boolean) =>
@@ -207,6 +277,11 @@ export default function App() {
             savedAt={todayCheckIn?.savedAt ?? null}
             reminders={state.reminders}
             now={now}
+            today={today}
+            saveDate={effectiveSaveDate}
+            minDate={state.missionStart}
+            savedDates={state.checkIns.map((c) => c.date)}
+            onSaveDateChange={setSaveDate}
             onSave={saveCheckIn}
             onDismiss={dismissReminder}
           />
@@ -223,6 +298,16 @@ export default function App() {
             <VitalsPanel
               vitals={state.vitals}
               symptoms={state.symptoms}
+              sources={state.sources}
+              devicePanel={
+                <DevicePanel
+                  devices={devices}
+                  lastSeen={lastSeen}
+                  onConnected={onDeviceConnected}
+                  onDisconnected={onDeviceDisconnected}
+                  onReading={onDeviceReading}
+                />
+              }
               assessment={assessment}
               onVital={setVital}
               onVision={setVision}
@@ -235,7 +320,11 @@ export default function App() {
               onClick={saveCheckIn}
               className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-sky-300/60 bg-sky-400/20 text-sm font-semibold text-sky-50 shadow-md shadow-sky-950/50 transition hover:-translate-y-0.5 hover:bg-sky-400/30 active:translate-y-0"
             >
-              {todayCheckIn ? 'Update today\'s check-in' : 'Save today\'s check-in'}
+              {effectiveSaveDate !== today
+                ? `Save check-in for ${effectiveSaveDate}`
+                : todayCheckIn
+                  ? 'Update today\'s check-in'
+                  : 'Save today\'s check-in'}
             </button>
           </Panel>
         </div>

@@ -1363,6 +1363,9 @@ export const DEFAULT_VITALS: Vitals = {
   spe: false,
 };
 
+/** Values that came from a connected Bluetooth device (all others were entered by hand). */
+export type DeviceSources = Partial<Record<NumericVitalKey, string>>;
+
 /** One saved daily check-in. One per calendar day; saving again updates that day. */
 export interface CheckIn {
   /** Local calendar date, YYYY-MM-DD. */
@@ -1371,6 +1374,8 @@ export interface CheckIn {
   savedAt: string;
   vitals: Vitals;
   symptoms: Symptoms;
+  /** Which values came from which device (device name), if any. */
+  sources?: DeviceSources;
 }
 
 /** Local date as YYYY-MM-DD (not UTC, so the day changes at local midnight). */

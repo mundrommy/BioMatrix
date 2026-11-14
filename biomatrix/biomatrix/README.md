@@ -12,7 +12,9 @@ The app helps an astronaut **gather** health indicators, **evaluate** them at a 
 ## What it does
 
 - **Daily check-in**: the astronaut enters 15 health indicators (sliders or number boxes) plus symptoms,
-  with step-by-step "how to measure" help, and saves one check-in per day.
+  with step-by-step "how to measure" help, and saves one check-in per day. Missed days can be logged afterwards.
+- **Bluetooth health devices**: connects to standard Bluetooth heart-rate monitors, blood-pressure cuffs,
+  thermometers and pulse oximeters (Web Bluetooth). Their values fill in automatically and are marked "From <device>".
 - **Interactive human body map**: a see-through human figure with 5 clickable zones (Neuro-Ocular & CNS,
   Cardiopulmonary & Cabin Air, Metabolic & Renal, Musculoskeletal, Immune & Radiation Shielding) whose organs glow
   green, amber or red. Clicking an organ zooms into it and shows labels with the live values.
@@ -50,6 +52,24 @@ npm run preview   # check the built version locally
 
 On Vercel: import the GitHub repository and keep the default settings (framework preset "Vite").
 
+### Connecting Bluetooth devices
+
+Press **Connect device** in the Vitals panel and choose the device in the browser's list. BioMatrix reads the official
+Bluetooth SIG health services, so any device that follows them works:
+
+| Service | UUID | Fills in |
+| --- | --- | --- |
+| Heart Rate | 0x180D | Heart rate |
+| Blood Pressure | 0x1810 | Systolic / diastolic |
+| Health Thermometer | 0x1809 | Body temperature |
+| Pulse Oximeter | 0x1822 | SpO2 |
+
+Web Bluetooth works in Chrome and Edge on computers and Android, on `https://` pages or `localhost`
+(not on iPhone Safari or Firefox). Without a device, the values can always be entered by hand.
+
+To test without hardware, an Android phone with a Bluetooth developer app (for example nRF Connect for Mobile)
+can act as a heart-rate sensor: set up a GATT server with the Heart Rate service and advertise the 0x180D service UUID.
+
 ### Setting up the AI explanation
 
 The "Explain my results" button calls the serverless function in `api/explain.js`, which talks to Google Gemini.
@@ -70,7 +90,8 @@ src/
   data/spaceHealthEngine.ts   All health data, ranges, sources, environments, check-in helpers and the triage logic
   components/
     Header.tsx                Mission day, environment switcher, streak, Earth-link status
-    CheckInCard.tsx           Save today's check-in and reminders
+    CheckInCard.tsx           Save today's check-in, log a missed day, reminders
+    DevicePanel.tsx           "Connect device" for Bluetooth health devices
     AiExplain.tsx             "Explain my results" (calls /api/explain)
     SpaceBackground.tsx       Animated space background
     IntroSplash.tsx           Opening animation
@@ -83,6 +104,7 @@ src/
     TrendPanel.tsx            History chart (Recharts)
     ui.tsx                    Status badge, source tag, panel
   App.tsx                     Page layout, saved check-ins, reminders
+  bluetooth/healthDevices.ts  Web Bluetooth connection and parsers for the standard health services
 api/
   explain.js                  Vercel serverless function for the AI explanation (Google Gemini)
 ```
