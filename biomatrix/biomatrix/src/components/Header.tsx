@@ -102,23 +102,6 @@ export function Header({
           })}
         </div>
 
-        <dl className="flex flex-wrap items-center gap-2 text-xs">
-          <div className="flex items-center gap-1.5 rounded-md border border-slate-800 bg-slate-900/80 px-2.5 py-1.5">
-            <dt className="text-slate-500">Gravity</dt>
-            <dd className="font-mono font-semibold text-slate-100">{env.gravity}</dd>
-          </div>
-          <div className="flex items-center gap-1.5 rounded-md border border-slate-800 bg-slate-900/80 px-2.5 py-1.5">
-            <dt className="text-slate-500">Radiation</dt>
-            <dd className="font-mono font-semibold text-slate-100">~{env.radiationPerDay.mSv.toFixed(1)} mSv/day</dd>
-            <SourceTag source={env.radiationPerDay.source} />
-          </div>
-          {env.dustAlert && (
-            <div className="flex items-center gap-1.5 rounded-md border border-amber-400/40 bg-amber-400/10 px-2.5 py-1.5 font-semibold text-amber-300">
-              Regolith dust alert <SourceTag source={env.note.source} />
-            </div>
-          )}
-        </dl>
-
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {/* Check-in streak (gamification) */}
           <div

@@ -225,19 +225,14 @@ export interface Environment {
   id: EnvironmentId;
   name: string;
   shortName: string;
-  gravity: string;
   /** Text shown in the header. */
   commDelay: Fact;
   /** One-way delay in seconds, used for the telemetry timer. 0 = near real-time. */
   commDelaySeconds: number;
   /** True when the crew cannot wait for Earth: self-care steps are shown first. */
   autonomousTriage: boolean;
-  /** Daily background radiation, for display and the dose trend. */
-  radiationPerDay: { mSv: number; source: string };
   /** Inside Earth's magnetic field (ISS) or beyond it (Moon, Mars). */
   magnetosphere: Fact;
-  /** Regolith dust alert (illustrative). */
-  dustAlert: boolean;
   /** How many yellow values at once escalate to "Crew Assist". Lower = more sensitive. */
   yellowsForCrewAssist: number;
   /** Status given to an active Solar Particle Event in this environment. */
@@ -252,16 +247,13 @@ export const ENVIRONMENTS: Record<EnvironmentId, Environment> = {
     id: 'iss',
     name: 'ISS LEO Orbit',
     shortName: 'ISS LEO',
-    gravity: 'Microgravity',
     commDelay: { text: 'Near real-time link', source: ILLUSTRATIVE },
     commDelaySeconds: 0,
     autonomousTriage: false,
-    radiationPerDay: { mSv: 0.6, source: ILLUSTRATIVE },
     magnetosphere: {
       text: 'Inside the protection of Earth’s magnetic field.',
       source: SRC.radiationCancer,
     },
-    dustAlert: false,
     yellowsForCrewAssist: 3,
     speStatus: 'yellow',
     hydrationGreenAt: 2.0,
@@ -274,16 +266,13 @@ export const ENVIRONMENTS: Record<EnvironmentId, Environment> = {
     id: 'moon',
     name: 'Lunar Base (1/6 g + Regolith)',
     shortName: 'Lunar Base',
-    gravity: '1/6 g',
     commDelay: { text: 'About 1.3 s one-way delay (light travel time)', source: ILLUSTRATIVE },
     commDelaySeconds: 1.3,
     autonomousTriage: false,
-    radiationPerDay: { mSv: 1.4, source: ILLUSTRATIVE },
     magnetosphere: {
       text: 'Beyond the protection of Earth’s magnetic field.',
       source: SRC.radiationCancer,
     },
-    dustAlert: true,
     yellowsForCrewAssist: 3,
     speStatus: 'red',
     hydrationGreenAt: 2.3,
@@ -296,16 +285,13 @@ export const ENVIRONMENTS: Record<EnvironmentId, Environment> = {
     id: 'mars',
     name: 'Mars Transit (Deep Space)',
     shortName: 'Mars Transit',
-    gravity: 'Microgravity',
     commDelay: { text: 'Up to 20 min one-way delay', source: SRC.distance },
     commDelaySeconds: 20 * 60,
     autonomousTriage: true,
-    radiationPerDay: { mSv: 1.8, source: ILLUSTRATIVE },
     magnetosphere: {
       text: 'Beyond the protection of Earth’s magnetic field.',
       source: SRC.radiationCancer,
     },
-    dustAlert: false,
     yellowsForCrewAssist: 2,
     speStatus: 'red',
     hydrationGreenAt: 2.0,
@@ -318,16 +304,13 @@ export const ENVIRONMENTS: Record<EnvironmentId, Environment> = {
     id: 'rover',
     name: 'Pressurized Rover (lunar surface)',
     shortName: 'Rover',
-    gravity: '1/6 g',
     commDelay: { text: 'About 1.3 s one-way delay, link may drop out', source: ILLUSTRATIVE },
     commDelaySeconds: 1.3,
     autonomousTriage: true,
-    radiationPerDay: { mSv: 1.4, source: ILLUSTRATIVE },
     magnetosphere: {
       text: 'Beyond the protection of Earth’s magnetic field.',
       source: SRC.radiationCancer,
     },
-    dustAlert: true,
     yellowsForCrewAssist: 2,
     speStatus: 'red',
     hydrationGreenAt: 2.3,
