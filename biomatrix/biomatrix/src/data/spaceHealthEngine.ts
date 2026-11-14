@@ -373,8 +373,6 @@ export interface MetricDef {
   countermeasures: { yellow: Fact[]; red: Fact[] };
   /** Sliders used to enter the value (empty for the vision check and SPE toggle). */
   fields: SliderField[];
-  /** Simulated wearable stream available for this metric. */
-  wearable?: boolean;
 }
 
 const ESCALATE_RED: Fact = {
@@ -456,7 +454,7 @@ export const METRICS: Record<MetricId, MetricDef> = {
       'Measure when you are calm and still, ideally right after waking up.',
       'Place two fingers on the inside of your wrist, below the thumb.',
       'Count the beats for 15 seconds and multiply by 4.',
-      'Or read the value from the wearable monitor (turn on "Wearable sync").',
+      'Or read the value from your wearable monitor.',
     ],
     countermeasures: {
       yellow: [
@@ -470,7 +468,6 @@ export const METRICS: Record<MetricId, MetricDef> = {
       ],
     },
     fields: [{ key: 'heartRate', label: 'Heart rate', min: 35, max: 180, step: 1 }],
-    wearable: true,
   },
 
   spo2: {
@@ -500,7 +497,6 @@ export const METRICS: Record<MetricId, MetricDef> = {
       ],
     },
     fields: [{ key: 'spo2', label: 'SpO2', min: 80, max: 100, step: 1 }],
-    wearable: true,
   },
 
   respRate: {
@@ -529,7 +525,6 @@ export const METRICS: Record<MetricId, MetricDef> = {
       ],
     },
     fields: [{ key: 'respRate', label: 'Respiratory rate', min: 6, max: 35, step: 1 }],
-    wearable: true,
   },
 
   cabinCo2: {
@@ -1195,7 +1190,7 @@ export interface Finding {
   status: Status;
   value: string;
   note: string;
-  /** True when the metric was already out of range yesterday. */
+  /** True when the metric was also out of range at the previous check-in. */
   persisting: boolean;
 }
 
@@ -1220,7 +1215,7 @@ export interface Assessment {
   triage: TriageResult;
 }
 
-const TREND_KEYS: NumericVitalKey[] = [
+export const TREND_KEYS: NumericVitalKey[] = [
   'heartRate',
   'systolic',
   'diastolic',
@@ -1251,7 +1246,7 @@ function vitalsFromRecord(base: Vitals, record: DayRecord): Vitals {
  * The main entry point: evaluates every metric, colours the 5 body zones and
  * decides the triage level.
  *
- * @param history previous days, oldest first, NOT including today.
+ * @param history previous check-ins, oldest first, NOT including today.
  */
 export function assess(vitals: Vitals, symptoms: Symptoms, env: Environment, history: DayRecord[]): Assessment {
   const ctx: EvalContext = { symptoms, env, recentSleep: history.map((d) => d.sleep) };
@@ -1259,7 +1254,7 @@ export function assess(vitals: Vitals, symptoms: Symptoms, env: Environment, his
   const metrics = {} as Record<MetricId, Evaluation>;
   for (const id of METRIC_ORDER) metrics[id] = evaluateMetric(id, vitals, ctx);
 
-  // Was the metric already out of range yesterday? (numeric metrics only)
+  // Was the metric also out of range at the previous check-in? (numeric metrics only)
   const yesterday = history[history.length - 1];
   const persisting = {} as Record<MetricId, boolean>;
   for (const id of METRIC_ORDER) {
@@ -1304,7 +1299,7 @@ export function assess(vitals: Vitals, symptoms: Symptoms, env: Environment, his
     reason = `${yellows.length} indicators are in the yellow range at the same time (limit for ${env.shortName}: ${env.yellowsForCrewAssist}).`;
   } else if (persistingYellows.length > 0) {
     level = 2;
-    reason = `${persistingYellows.map((f) => METRICS[f.metric].label).join(', ')} out of range for a second day.`;
+    reason = `${persistingYellows.map((f) => METRICS[f.metric].label).join(', ')} out of range at two check-ins in a row.`;
   } else if (yellows.length > 0) {
     level = 1;
     reason = `${yellows.map((f) => METRICS[f.metric].label).join(', ')} slightly out of range.`;
@@ -1362,193 +1357,90 @@ export function assess(vitals: Vitals, symptoms: Symptoms, env: Environment, his
 }
 
 // ---------------------------------------------------------------------------
-// Demo presets with 14-day history
+// Daily check-ins (saved in the browser)
 // ---------------------------------------------------------------------------
 
-export interface Preset {
-  id: string;
-  name: string;
-  shortName: string;
-  description: string;
-  env: EnvironmentId;
-  missionDay: number;
-  vitals: Vitals;
-  symptoms: Symptoms;
-  /** 14 days, oldest first. The last entry is "today" and matches `vitals`. */
-  trend: DayRecord[];
-}
-
-const WOBBLE: Record<NumericVitalKey, number> = {
-  heartRate: 3,
-  systolic: 3,
-  diastolic: 2,
-  spo2: 0.6,
-  respRate: 1,
-  cabinCo2: 90,
-  glucose: 3,
-  hydration: 0.2,
-  temperature: 0.15,
-  sleep: 0.3,
-  mood: 0.6,
-  reactionTime: 12,
-  exercise: 12,
-  radiationDose: 0,
-};
-
-const DECIMALS: Partial<Record<NumericVitalKey, number>> = { hydration: 1, temperature: 1, sleep: 1 };
-
-function round(key: NumericVitalKey, value: number): number {
-  const factor = 10 ** (DECIMALS[key] ?? 0);
-  return Math.round(value * factor) / factor;
-}
-
-/**
- * Builds a 14-day history that ends exactly at today's vitals.
- * `start` gives the value 13 days ago for metrics that drift; others stay flat.
- * `overrides` lets a preset fix an exact series (used for the sleep 3-nights rule).
- */
-function buildTrend(
-  missionDay: number,
-  today: Vitals,
-  start: Partial<Record<NumericVitalKey, number>> = {},
-  overrides: Partial<Record<NumericVitalKey, number[]>> = {},
-): DayRecord[] {
-  const days = 14;
-  const records: DayRecord[] = [];
-  for (let i = 0; i < days; i++) {
-    const t = i / (days - 1);
-    const record = { day: missionDay - (days - 1 - i) } as DayRecord;
-    TREND_KEYS.forEach((key, k) => {
-      const end = today[key];
-      const from = start[key] ?? end;
-      // Change builds up towards the end of the period.
-      const base = from + (end - from) * t * t;
-      // Small repeatable day-to-day variation; zero on the last day.
-      const wobble = i === days - 1 ? 0 : Math.sin(i * 2.3 + k * 1.7) * WOBBLE[key];
-      let value = round(key, base + wobble);
-      if (key === 'mood') value = Math.min(10, Math.max(1, value));
-      if (key === 'spo2') value = Math.min(100, value);
-      record[key] = overrides[key]?.[i] ?? value;
-    });
-    records.push(record);
-  }
-  return records;
-}
-
-const NOMINAL_ISS: Vitals = {
-  heartRate: 68,
-  systolic: 114,
-  diastolic: 74,
+/** Typical in-range values used to pre-fill the form before the first check-in. */
+export const DEFAULT_VITALS: Vitals = {
+  heartRate: 70,
+  systolic: 115,
+  diastolic: 75,
   spo2: 98,
   respRate: 15,
-  cabinCo2: 2100,
-  glucose: 88,
-  hydration: 2.6,
+  cabinCo2: 2000,
+  glucose: 90,
+  hydration: 2.0,
   temperature: 36.7,
-  sleep: 7.4,
-  mood: 8,
-  reactionTime: 265,
-  vision: 'normal',
-  exercise: 120,
-  radiationDose: 11,
-  spe: false,
-};
-
-const MARS_CO2_SANS: Vitals = {
-  heartRate: 74,
-  systolic: 118,
-  diastolic: 76,
-  spo2: 96,
-  respRate: 17,
-  cabinCo2: 3200,
-  glucose: 108,
-  hydration: 2.2,
-  temperature: 36.8,
-  sleep: 5.2,
-  mood: 5,
-  reactionTime: 410,
-  vision: 'mild',
-  exercise: 75,
-  radiationDose: 295,
-  spe: false,
-};
-
-const LUNAR_EVA_STORM: Vitals = {
-  heartRate: 112,
-  systolic: 118,
-  diastolic: 76,
-  spo2: 96,
-  respRate: 19,
-  cabinCo2: 2200,
-  glucose: 92,
-  hydration: 1.4,
-  temperature: 37.3,
-  sleep: 7.1,
+  sleep: 7.5,
   mood: 7,
   reactionTime: 300,
   vision: 'normal',
-  exercise: 90,
-  radiationDose: 64,
-  spe: true,
+  exercise: 60,
+  radiationDose: 0,
+  spe: false,
 };
 
-export const PRESETS: Preset[] = [
-  {
-    id: 'nominal-iss',
-    name: 'Nominal ISS Flight (Mission Day 18)',
-    shortName: 'Nominal ISS',
-    description: 'All indicators green, baseline wearable telemetry.',
-    env: 'iss',
-    missionDay: 18,
-    vitals: NOMINAL_ISS,
-    symptoms: NO_SYMPTOMS,
-    trend: buildTrend(18, NOMINAL_ISS, { radiationDose: 3 }, {
-      // Nobody exercises exactly the same every day, but keep it in the green range.
-      exercise: [110, 125, 120, 95, 130, 120, 115, 105, 125, 120, 110, 130, 115, 120],
-      radiationDose: [3, 4, 4, 5, 6, 6, 7, 7, 8, 9, 9, 10, 10, 11],
-    }),
-  },
-  {
-    id: 'mars-co2-sans',
-    name: 'Mars Transit: CO2 & SANS Alert (Mission Day 164)',
-    shortName: 'Mars: CO2 & SANS',
-    description: 'Elevated cabin CO2, slower reactions, short sleep, mild visual blur, borderline fasting glucose.',
-    env: 'mars',
-    missionDay: 164,
-    vitals: MARS_CO2_SANS,
-    symptoms: { ...NO_SYMPTOMS, blurredVision: true },
-    trend: buildTrend(
-      164,
-      MARS_CO2_SANS,
-      { cabinCo2: 2150, glucose: 94, reactionTime: 285, mood: 7.5, radiationDose: 272, exercise: 105 },
-      {
-        // Sleep was fine until a sharp drop last night.
-        sleep: [7.5, 7.3, 7.4, 7.2, 7.6, 7.3, 7.1, 7.4, 7.2, 7.3, 7.0, 7.2, 7.1, 5.2],
-      },
-    ),
-  },
-  {
-    id: 'lunar-eva-storm',
-    name: 'Lunar EVA & Solar Storm Alert (Mission Day 42)',
-    shortName: 'Lunar: EVA & Storm',
-    description: 'Elevated heart rate, low hydration after a moonwalk, dust irritation, active Solar Particle Event.',
-    env: 'moon',
-    missionDay: 42,
-    vitals: LUNAR_EVA_STORM,
-    symptoms: { ...NO_SYMPTOMS, irritation: true },
-    trend: buildTrend(
-      42,
-      LUNAR_EVA_STORM,
-      { radiationDose: 40 },
-      {
-        // The EVA happened today: heart rate and hydration change on the last day only.
-        heartRate: [70, 72, 69, 71, 74, 70, 68, 73, 71, 69, 72, 70, 74, 112],
-        hydration: [2.6, 2.4, 2.5, 2.7, 2.4, 2.6, 2.5, 2.3, 2.6, 2.5, 2.4, 2.6, 2.4, 1.4],
-        // The solar storm adds a visible jump in dose today.
-        radiationDose: [40, 41, 43, 44, 46, 47, 48, 50, 51, 53, 54, 55, 57, 64],
-      },
-    ),
-  },
-];
+/** One saved daily check-in. One per calendar day; saving again updates that day. */
+export interface CheckIn {
+  /** Local calendar date, YYYY-MM-DD. */
+  date: string;
+  /** Time of the last save, ISO string. */
+  savedAt: string;
+  vitals: Vitals;
+  symptoms: Symptoms;
+}
 
-export const DEFAULT_PRESET = PRESETS[0];
+/** Local date as YYYY-MM-DD (not UTC, so the day changes at local midnight). */
+export function localDateKey(d: Date = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Whole days from date a to date b (both YYYY-MM-DD). */
+export function daysBetween(a: string, b: string): number {
+  const [ya, ma, da] = a.split('-').map(Number);
+  const [yb, mb, db] = b.split('-').map(Number);
+  return Math.round((Date.UTC(yb, mb - 1, db) - Date.UTC(ya, ma - 1, da)) / 86400000);
+}
+
+/** Mission day number for a date: the start date is day 1. */
+export function missionDayFor(date: string, missionStart: string): number {
+  return Math.max(1, daysBetween(missionStart, date) + 1);
+}
+
+/** Turns saved check-ins into the history records the engine and the chart use. */
+export function toDayRecords(checkIns: CheckIn[], missionStart: string): DayRecord[] {
+  return [...checkIns]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((c) => {
+      const record = { day: missionDayFor(c.date, missionStart) } as DayRecord;
+      for (const key of TREND_KEYS) record[key] = c.vitals[key];
+      return record;
+    });
+}
+
+/**
+ * Check-in streak: the number of days in a row with a saved check-in,
+ * ending today (or yesterday, if today's check-in is not done yet).
+ */
+export function checkInStreak(checkIns: CheckIn[], today: string): number {
+  const dates = new Set(checkIns.map((c) => c.date));
+  let day = today;
+  if (!dates.has(day)) {
+    const y = new Date();
+    y.setDate(y.getDate() - 1);
+    day = localDateKey(y);
+  }
+  let streak = 0;
+  const cursor = new Date(Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1, Number(day.slice(8, 10)));
+  while (dates.has(localDateKey(cursor))) {
+    streak++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+/** Hours until a re-measure reminder, by status. */
+export const REMEASURE_HOURS: Record<Exclude<Status, 'green'>, number> = { yellow: 4, red: 1 };

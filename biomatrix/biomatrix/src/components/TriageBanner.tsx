@@ -1,4 +1,4 @@
-import { ChevronDown, CircleCheck, Send, Siren, Stethoscope, Users } from 'lucide-react';
+import { ChevronDown, CircleCheck, Siren, Stethoscope, Users } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { METRICS, type Environment, type TriageLevel, type TriageResult } from '../data/spaceHealthEngine';
 import { FactLine, StatusBadge } from './ui';
@@ -28,7 +28,6 @@ const LEVEL_STYLE: Record<TriageLevel, { box: string; accent: string; icon: Reac
 
 export function TriageBanner({ triage, env }: { triage: TriageResult; env: Environment }) {
   const [open, setOpen] = useState(true);
-  const [sent, setSent] = useState(false);
   const style = LEVEL_STYLE[triage.level];
 
   return (
@@ -63,25 +62,6 @@ export function TriageBanner({ triage, env }: { triage: TriageResult; env: Envir
             ))}
           </ol>
 
-          {triage.level === 3 && (
-            <div className="mt-3">
-              {sent ? (
-                <p role="status" className="rounded-md border border-sky-400/40 bg-sky-400/10 px-3 py-2 text-xs text-sky-200">
-                  Telemetry package queued for the flight surgeons (simulated). Earth link: {env.commDelay.text.toLowerCase()}.
-                </p>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setSent(true)}
-                  className="flex min-h-11 items-center gap-2 rounded-md border border-rose-300/60 bg-rose-500/30 px-4 text-sm font-semibold text-rose-50 shadow-md shadow-rose-950/50 transition hover:-translate-y-0.5 hover:bg-rose-500/45 active:translate-y-0"
-                >
-                  <Send className="h-4 w-4" aria-hidden="true" />
-                  Transmit telemetry package
-                </button>
-              )}
-            </div>
-          )}
-
           <button
             type="button"
             aria-expanded={open}
@@ -103,7 +83,7 @@ export function TriageBanner({ triage, env }: { triage: TriageResult; env: Envir
                       {METRICS[f.metric].unit ? ` ${METRICS[f.metric].unit}` : ''}
                     </span>
                     <span className="text-slate-400">{f.note}</span>
-                    {f.persisting && <span className="text-orange-300">2nd day</span>}
+                    {f.persisting && <span className="text-orange-300">also at last check-in</span>}
                     <StatusBadge status={f.status} className="ml-auto" />
                   </li>
                 ))}

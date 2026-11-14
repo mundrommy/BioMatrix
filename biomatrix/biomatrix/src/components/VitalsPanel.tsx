@@ -23,8 +23,6 @@ interface VitalsPanelProps {
   vitals: Vitals;
   symptoms: Symptoms;
   assessment: Assessment;
-  /** True while the simulated wearable is streaming HR, SpO2 and respiratory rate. */
-  live: boolean;
   onVital: (key: NumericVitalKey, value: number) => void;
   onVision: (value: VisionCheck) => void;
   onSpe: (value: boolean) => void;
@@ -46,13 +44,11 @@ const VISION_OPTIONS: { value: VisionCheck; label: string }[] = [
 function NumberField({
   field,
   value,
-  disabled,
   label,
   onCommit,
 }: {
   field: SliderField;
   value: number;
-  disabled: boolean;
   label: string;
   onCommit: (value: number) => void;
 }) {
@@ -79,14 +75,13 @@ function NumberField({
       max={field.max}
       step={field.step}
       value={text}
-      disabled={disabled}
       aria-label={label}
       onChange={(e) => setText(e.target.value)}
       onBlur={commit}
       onKeyDown={(e) => {
         if (e.key === 'Enter') commit();
       }}
-      className="w-[4.5rem] shrink-0 rounded border border-slate-700 bg-slate-900 px-1.5 py-1 text-right font-mono text-xs text-slate-100 disabled:opacity-50"
+      className="w-[4.5rem] shrink-0 rounded border border-slate-700 bg-slate-900 px-1.5 py-1 text-right font-mono text-xs text-slate-100"
     />
   );
 }
@@ -95,7 +90,6 @@ export function VitalsPanel({
   vitals,
   symptoms,
   assessment,
-  live,
   onVital,
   onVision,
   onSpe,
@@ -106,18 +100,11 @@ export function VitalsPanel({
     const metric = METRICS[id];
     const evaluation = assessment.metrics[id];
     const style = STATUS_STYLE[evaluation.status];
-    const streaming = live && !!metric.wearable;
 
     return (
       <div key={id} className="rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-2">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="text-sm font-medium text-slate-100">{metric.label}</span>
-          {streaming && (
-            <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-300">
-              <span className="live-blip h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden="true" />
-              Live
-            </span>
-          )}
           <span className="ml-auto font-mono text-sm font-semibold text-slate-50">
             {formatMetric(id, vitals)}
             {metric.unit && <span className="ml-1 text-xs font-normal text-slate-400">{metric.unit}</span>}
@@ -141,14 +128,12 @@ export function VitalsPanel({
               max={field.max}
               step={field.step}
               value={vitals[field.key]}
-              disabled={streaming}
               onChange={(e) => onVital(field.key, Number(e.target.value))}
-              className="h-6 w-full cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-6 w-full cursor-pointer"
             />
             <NumberField
               field={field}
               value={vitals[field.key]}
-              disabled={streaming}
               label={`${metric.label}${metric.fields.length > 1 ? ` ${field.label}` : ''} value`}
               onCommit={(n) => onVital(field.key, n)}
             />

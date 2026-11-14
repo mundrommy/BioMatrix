@@ -1,6 +1,8 @@
-import { Activity, BookOpen, SlidersHorizontal, TrendingUp } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Activity, BookOpen, SlidersHorizontal, Trash2, TrendingUp } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AiExplain } from './components/AiExplain';
 import { AstronautMap } from './components/AstronautMap';
+import { CheckInCard, type Reminder } from './components/CheckInCard';
 import { GuidanceDrawer } from './components/GuidanceDrawer';
 import { Header } from './components/Header';
 import { SpaceBackground } from './components/SpaceBackground';
@@ -10,44 +12,52 @@ import { TriageBanner } from './components/TriageBanner';
 import { VitalsPanel } from './components/VitalsPanel';
 import { Panel, SourceTag } from './components/ui';
 import {
-  DEFAULT_PRESET,
+  DEFAULT_VITALS,
   DISCLAIMER,
   ENVIRONMENTS,
   ILLUSTRATIVE,
-  PRESETS,
+  METRIC_ORDER,
+  NO_SYMPTOMS,
+  REMEASURE_HOURS,
   SOURCE_LABELS,
   assess,
-  type DayRecord,
+  checkInStreak,
+  localDateKey,
+  missionDayFor,
+  toDayRecords,
+  type CheckIn,
   type EnvironmentId,
+  type MetricId,
   type NumericVitalKey,
-  type Preset,
   type Symptoms,
   type VisionCheck,
   type Vitals,
   type ZoneId,
 } from './data/spaceHealthEngine';
 
-const STORAGE_KEY = 'biomatrix-state-v1';
+const STORAGE_KEY = 'biomatrix-data-v2';
 
-/** Everything that is saved in the browser so a page refresh keeps the session. */
+/** Everything saved in this browser (nothing is sent to a server). */
 interface SavedState {
   envId: EnvironmentId;
-  presetId: string | null;
-  missionDay: number;
+  /** First day of the mission, YYYY-MM-DD (mission day 1). */
+  missionStart: string;
+  /** Values currently in the form (not yet saved, or today's saved values). */
   vitals: Vitals;
   symptoms: Symptoms;
-  /** Previous 13 days, oldest first (today is the live vitals). */
-  history: DayRecord[];
+  /** One saved check-in per day, oldest first. */
+  checkIns: CheckIn[];
+  reminders: Reminder[];
 }
 
-function stateFromPreset(preset: Preset): SavedState {
+function freshState(): SavedState {
   return {
-    envId: preset.env,
-    presetId: preset.id,
-    missionDay: preset.missionDay,
-    vitals: { ...preset.vitals },
-    symptoms: { ...preset.symptoms },
-    history: preset.trend.slice(0, -1),
+    envId: 'iss',
+    missionStart: localDateKey(),
+    vitals: { ...DEFAULT_VITALS },
+    symptoms: { ...NO_SYMPTOMS },
+    checkIns: [],
+    reminders: [],
   };
 }
 
@@ -56,29 +66,55 @@ function loadState(): SavedState {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const saved = JSON.parse(raw) as SavedState;
-      if (saved && saved.vitals && saved.symptoms && Array.isArray(saved.history) && ENVIRONMENTS[saved.envId]) {
-        return saved;
+      if (
+        saved &&
+        ENVIRONMENTS[saved.envId] &&
+        typeof saved.missionStart === 'string' &&
+        saved.vitals &&
+        saved.symptoms &&
+        Array.isArray(saved.checkIns) &&
+        Array.isArray(saved.reminders)
+      ) {
+        return { ...saved, vitals: { ...DEFAULT_VITALS, ...saved.vitals } };
       }
     }
   } catch {
-    // Storage unavailable or corrupted: fall back to the default preset.
+    // Storage unavailable or corrupted: start fresh.
   }
-  return stateFromPreset(DEFAULT_PRESET);
+  return freshState();
 }
+
+/** Indicators that make sense to measure again a few hours later. */
+const REMEASURABLE = METRIC_ORDER.filter((id) => id !== 'radiationDose' && id !== 'spe');
 
 export default function App() {
   const [state, setState] = useState<SavedState>(loadState);
-  const [live, setLive] = useState(false);
   const [selectedZone, setSelectedZone] = useState<ZoneId | null>(null);
   const [intro, setIntro] = useState(true);
-  // Baseline values the simulated wearable varies around.
-  const liveBase = useRef({ heartRate: state.vitals.heartRate, spo2: state.vitals.spo2, respRate: state.vitals.respRate });
+  const [now, setNow] = useState(() => new Date());
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
+  // A clock for reminders and for the date changing at midnight.
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const today = localDateKey(now);
+  const missionDay = missionDayFor(today, state.missionStart);
   const env = ENVIRONMENTS[state.envId];
-  const assessment = useMemo(
-    () => assess(state.vitals, state.symptoms, env, state.history),
-    [state.vitals, state.symptoms, env, state.history],
+  const todayCheckIn = state.checkIns.find((c) => c.date === today) ?? null;
+
+  // Previous check-ins (not today) feed the trend chart and the "two check-ins in a row" rule.
+  const history = useMemo(
+    () => toDayRecords(state.checkIns.filter((c) => c.date < today), state.missionStart),
+    [state.checkIns, state.missionStart, today],
   );
+  const assessment = useMemo(
+    () => assess(state.vitals, state.symptoms, env, history),
+    [state.vitals, state.symptoms, env, history],
+  );
+  const streak = useMemo(() => checkInStreak(state.checkIns, today), [state.checkIns, today]);
 
   // Save to the browser on every change (works fully offline).
   useEffect(() => {
@@ -89,48 +125,32 @@ export default function App() {
     }
   }, [state]);
 
-  // Simulated Bio-Monitor wearable: small live variations around the baseline.
-  useEffect(() => {
-    if (!live) return;
-    const jitter = (range: number) => Math.round((Math.random() * 2 - 1) * range);
-    const timer = window.setInterval(() => {
-      const base = liveBase.current;
-      setState((s) => ({
-        ...s,
-        vitals: {
-          ...s.vitals,
-          heartRate: base.heartRate + jitter(2),
-          spo2: Math.min(100, base.spo2 + jitter(1)),
-          respRate: base.respRate + jitter(1),
-        },
-      }));
-    }, 1200);
-    return () => window.clearInterval(timer);
-  }, [live]);
-
-  const toggleLive = (on: boolean) => {
-    liveBase.current = {
-      heartRate: state.vitals.heartRate,
-      spo2: state.vitals.spo2,
-      respRate: state.vitals.respRate,
-    };
-    setLive(on);
+  const saveCheckIn = () => {
+    const savedAt = new Date().toISOString();
+    setState((s) => {
+      const checkIn: CheckIn = { date: today, savedAt, vitals: { ...s.vitals }, symptoms: { ...s.symptoms } };
+      const checkIns = [...s.checkIns.filter((c) => c.date !== today), checkIn].sort((a, b) => a.date.localeCompare(b.date));
+      // A "measure again" reminder for each out-of-range indicator: 4 h for caution, 1 h for critical.
+      const reminders: Reminder[] = REMEASURABLE.flatMap((id: MetricId) => {
+        const status = assessment.metrics[id].status;
+        if (status === 'green') return [];
+        return [{ metric: id, due: new Date(Date.now() + REMEASURE_HOURS[status] * 3_600_000).toISOString() }];
+      });
+      return { ...s, checkIns, reminders };
+    });
   };
 
-  const loadPreset = (id: string) => {
-    const preset = PRESETS.find((p) => p.id === id) ?? DEFAULT_PRESET;
-    liveBase.current = {
-      heartRate: preset.vitals.heartRate,
-      spo2: preset.vitals.spo2,
-      respRate: preset.vitals.respRate,
-    };
-    setState(stateFromPreset(preset));
+  const dismissReminder = (metric: MetricId) =>
+    setState((s) => ({ ...s, reminders: s.reminders.filter((r) => r.metric !== metric) }));
+
+  const deleteAllData = () => {
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
+    setState(freshState());
+    setConfirmDelete(false);
     setSelectedZone(null);
-  };
-
-  const reset = () => {
-    setLive(false);
-    loadPreset(DEFAULT_PRESET.id);
   };
 
   const setVital = (key: NumericVitalKey, value: number) =>
@@ -140,6 +160,7 @@ export default function App() {
   const setSymptom = (key: keyof Symptoms, value: boolean) =>
     setState((s) => ({ ...s, symptoms: { ...s.symptoms, [key]: value } }));
   const setEnv = (envId: EnvironmentId) => setState((s) => ({ ...s, envId }));
+  const setMissionStart = (missionStart: string) => setState((s) => ({ ...s, missionStart }));
   const closeDrawer = useCallback(() => setSelectedZone(null), []);
   const finishIntro = useCallback(() => setIntro(false), []);
 
@@ -148,13 +169,12 @@ export default function App() {
       <SpaceBackground />
       <Header
         env={env}
-        missionDay={state.missionDay}
-        presetId={state.presetId}
-        live={live}
+        missionDay={missionDay}
+        missionStart={state.missionStart}
+        streak={streak}
+        totalCheckIns={state.checkIns.length}
         onEnvChange={setEnv}
-        onPreset={loadPreset}
-        onLiveChange={toggleLive}
-        onReset={reset}
+        onMissionStartChange={setMissionStart}
       />
 
       <main className={`relative z-10 mx-auto grid max-w-[1500px] grid-cols-1 gap-4 p-4 xl:grid-cols-12 ${intro ? '' : 'dash-reveal'}`}>
@@ -177,14 +197,23 @@ export default function App() {
             </p>
           </Panel>
 
-          <Panel title="14-day trend" icon={<TrendingUp className="h-4 w-4 text-sky-300" aria-hidden="true" />}>
-            <TrendPanel history={state.history} vitals={state.vitals} missionDay={state.missionDay} />
+          <Panel title="History trend" icon={<TrendingUp className="h-4 w-4 text-sky-300" aria-hidden="true" />}>
+            <TrendPanel history={history} vitals={state.vitals} missionDay={missionDay} />
           </Panel>
         </div>
 
         <div className="flex min-w-0 flex-col gap-4 xl:col-span-5">
-          {/* The key resets the "transmitted" state when the scenario or level changes */}
-          <TriageBanner key={`${state.presetId}-${state.envId}-${assessment.triage.level}`} triage={assessment.triage} env={env} />
+          <CheckInCard
+            savedAt={todayCheckIn?.savedAt ?? null}
+            reminders={state.reminders}
+            now={now}
+            onSave={saveCheckIn}
+            onDismiss={dismissReminder}
+          />
+
+          <TriageBanner triage={assessment.triage} env={env} />
+
+          <AiExplain assessment={assessment} vitals={state.vitals} env={env} missionDay={missionDay} />
 
           <Panel
             title="Vitals input"
@@ -195,13 +224,19 @@ export default function App() {
               vitals={state.vitals}
               symptoms={state.symptoms}
               assessment={assessment}
-              live={live}
               onVital={setVital}
               onVision={setVision}
               onSpe={setSpe}
               onSymptom={setSymptom}
               onOpenZone={setSelectedZone}
             />
+            <button
+              type="button"
+              onClick={saveCheckIn}
+              className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-sky-300/60 bg-sky-400/20 text-sm font-semibold text-sky-50 shadow-md shadow-sky-950/50 transition hover:-translate-y-0.5 hover:bg-sky-400/30 active:translate-y-0"
+            >
+              {todayCheckIn ? 'Update today\'s check-in' : 'Save today\'s check-in'}
+            </button>
           </Panel>
         </div>
       </main>
@@ -230,10 +265,25 @@ export default function App() {
             </p>
           </details>
 
-          <p>
-            BioMatrix | 2026 NASA Space Apps Challenge prototype. All astronaut data shown is simulated demo data. This project
-            is not endorsed by NASA.
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p>
+              BioMatrix | 2026 NASA Space Apps Challenge. Your check-ins are stored only in this browser. This project is not
+              endorsed by NASA.
+            </p>
+            <button
+              type="button"
+              onClick={deleteAllData}
+              onBlur={() => setConfirmDelete(false)}
+              className={`flex min-h-9 items-center gap-1.5 rounded-md border px-3 text-xs transition ${
+                confirmDelete
+                  ? 'border-rose-400 bg-rose-500/20 font-semibold text-rose-100'
+                  : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+              }`}
+            >
+              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+              {confirmDelete ? 'Click again to delete all my data' : 'Delete my data'}
+            </button>
+          </div>
         </div>
       </footer>
 

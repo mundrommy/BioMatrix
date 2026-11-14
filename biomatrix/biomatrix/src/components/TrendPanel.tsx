@@ -12,20 +12,20 @@ import { SourceTag } from './ui';
 const LINE_COLORS = ['#38bdf8', '#c084fc'];
 
 interface TrendPanelProps {
-  /** Previous days, oldest first (today is added from the live vitals). */
+  /** Previous check-ins, oldest first (today is added from the current values). */
   history: DayRecord[];
   vitals: Vitals;
   missionDay: number;
 }
 
-/** 14-day trend of one indicator: 13 days of history plus today's live value. */
+/** Trend of one indicator: up to 13 saved check-ins plus today's current value. */
 export function TrendPanel({ history, vitals, missionDay }: TrendPanelProps) {
   const [metricId, setMetricId] = useState<MetricId>('sleep');
   const option = TREND_OPTIONS.find((o) => o.id === metricId) ?? TREND_OPTIONS[0];
   const metric = METRICS[option.id];
 
   const data = [
-    ...history.map((d) => {
+    ...history.slice(-13).map((d) => {
       const row: Record<string, number | string> = { label: `D${d.day}` };
       option.keys.forEach((k) => (row[k] = d[k]));
       return row;
@@ -94,7 +94,9 @@ export function TrendPanel({ history, vitals, missionDay }: TrendPanelProps) {
         </ResponsiveContainer>
       </div>
       <p className="mt-2 text-[11px] text-slate-500">
-        Last 14 mission days. The final point is today's value and moves when you change the input. History values are demo data.
+        {history.length === 0
+          ? 'Your trend builds up as you save a check-in each day. The point shown is today\'s value.'
+          : 'Earlier points are your saved check-ins (up to 13). The final point is today\'s value and moves when you change the input.'}
       </p>
     </div>
   );

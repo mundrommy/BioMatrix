@@ -7,25 +7,28 @@ The app helps an astronaut **gather** health indicators, **evaluate** them at a 
 **act** on the result, even when Earth is up to 20 minutes away.
 
 > Guidance only, not a medical diagnosis. The flight surgeon makes medical decisions.
-> All astronaut data in the app is simulated demo data. This project is not endorsed by NASA.
+> This project is not endorsed by NASA.
 
 ## What it does
 
-- **Interactive astronaut body map**: 5 clickable zones (Neuro-Ocular & CNS, Cardiopulmonary & Cabin Air,
-  Metabolic & Renal, Musculoskeletal, Immune & Radiation Shielding) that glow green, amber or red.
-- **Medical guidance drawer** for each zone: linked NASA hazards, why space causes the problem,
-  step-by-step "how to perform exam" checklists, reference ranges and countermeasures, each with its source.
+- **Daily check-in**: the astronaut enters 15 health indicators (sliders or number boxes) plus symptoms,
+  with step-by-step "how to measure" help, and saves one check-in per day.
+- **Interactive human body map**: a see-through human figure with 5 clickable zones (Neuro-Ocular & CNS,
+  Cardiopulmonary & Cabin Air, Metabolic & Renal, Musculoskeletal, Immune & Radiation Shielding) whose organs glow
+  green, amber or red. Clicking an organ zooms into it and shows labels with the live values.
+- **Medical guidance** for each zone: linked NASA hazards, why space causes the problem, exam checklists,
+  reference ranges and countermeasures, each with its source.
 - **Autonomous triage** in 4 levels: Nominal, Self-Care Protocol, Crew Assist Needed,
   Transmit Urgent Telemetry to Earth Flight Surgeons. In Mars transit the self-care steps come first,
   because a reply from Earth can take 40+ minutes.
-- **Vitals input**: sliders and number boxes for 15 indicators plus symptom checkboxes. Zones and triage update instantly.
-- **Mission environments**: ISS, Lunar Base, Mars Transit and Pressurized Rover change gravity,
-  communication delay, radiation and how early the app escalates.
-- **15-second reaction test** (PVT-style mini-game) that feeds the reaction-time indicator.
-- **14-day trend chart** for every numeric indicator.
-- **3 one-click demo scenarios** for a live pitch.
-- **Simulated wearable sync** that streams heart rate, SpO2 and respiratory rate.
-- **Offline-first**: no backend. State is saved in the browser with `localStorage`.
+- **Mission settings**: environment (ISS, Lunar Base, Mars Transit, Pressurized Rover) and mission start date,
+  which sets the mission day.
+- **History trend chart** built from the saved check-ins.
+- **Check-in streak** counter and **in-app reminders** ("time to measure again") for out-of-range values.
+- **AI "Explain my results"**: a short plain-language summary from Google Gemini, limited to the app's own facts.
+- **15-second reaction test** (PVT-style mini-game).
+- **Private by design**: check-ins are stored only in the browser (`localStorage`). "Delete my data" removes them.
+  Only the AI button sends today's values (no name) to the server.
 
 ## How to run
 
@@ -47,21 +50,41 @@ npm run preview   # check the built version locally
 
 On Vercel: import the GitHub repository and keep the default settings (framework preset "Vite").
 
+### Setting up the AI explanation
+
+The "Explain my results" button calls the serverless function in `api/explain.js`, which talks to Google Gemini.
+The API key is kept on the server and never reaches the browser.
+
+1. Get a free API key in Google AI Studio.
+2. In Vercel: Project > Settings > Environment Variables, add `GEMINI_API_KEY` with your key.
+3. Optional: add `GEMINI_MODEL` to choose another Gemini model (default: `gemini-flash-latest`).
+4. Redeploy.
+
+With `npm run dev` only the app runs, not the function, so the button shows a message that the AI works on the
+online version. To test it locally, use `npx vercel dev`.
+
 ## Project structure
 
 ```
 src/
-  data/spaceHealthEngine.ts   All health data, ranges, sources, environments, presets and the triage logic
+  data/spaceHealthEngine.ts   All health data, ranges, sources, environments, check-in helpers and the triage logic
   components/
-    Header.tsx                Environment switcher, Earth-link status, demo scenarios, wearable toggle
-    AstronautMap.tsx          SVG astronaut with 5 clickable zones
+    Header.tsx                Mission day, environment switcher, streak, Earth-link status
+    CheckInCard.tsx           Save today's check-in and reminders
+    AiExplain.tsx             "Explain my results" (calls /api/explain)
+    SpaceBackground.tsx       Animated space background
+    IntroSplash.tsx           Opening animation
+    BioMatrixLogo.tsx         Logo
+    AstronautMap.tsx          Human body map with 5 clickable zones and organ zoom
     GuidanceDrawer.tsx        Medical guidance for the selected zone
     TriageBanner.tsx          Triage level, steps, telemetry summary
     VitalsPanel.tsx           Symptoms and all indicator inputs
     PVTGame.tsx               15-second reaction test
-    TrendPanel.tsx            14-day chart (Recharts)
+    TrendPanel.tsx            History chart (Recharts)
     ui.tsx                    Status badge, source tag, panel
-  App.tsx                     Page layout and state
+  App.tsx                     Page layout, saved check-ins, reminders
+api/
+  explain.js                  Vercel serverless function for the AI explanation (Google Gemini)
 ```
 
 ## Scientific accuracy
@@ -126,6 +149,7 @@ The human figure and the BioMatrix logo are original artwork drawn by the team f
 ### Use of AI
 
 AI tools (Anthropic Claude) were used to help research sources, plan the project and write code.
+The app's "Explain my results" feature uses the Google Gemini API.
 The team reviewed the content and is responsible for it.
 
 ## License
