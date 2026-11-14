@@ -39,11 +39,11 @@ export function Header({
   const [editingStart, setEditingStart] = useState(false);
 
   return (
-    <header className="relative z-20 border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md">
+    <header className="header-line relative z-20 border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md">
       <div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3">
         {/* Brand and mission day */}
         <div className="flex items-center gap-3">
-          <BioMatrixLogo className="h-11 w-11 shrink-0 drop-shadow-[0_0_8px_rgba(56,189,248,0.45)]" />
+          <BioMatrixLogo className="logo-live h-11 w-11 shrink-0" />
           <div>
             <h1 className="text-lg font-bold leading-tight tracking-[0.2em] text-slate-100">BIOMATRIX</h1>
             <div className="flex flex-wrap items-center gap-x-2 text-xs text-slate-400">
@@ -110,7 +110,7 @@ export function Header({
             }`}
             title={`${totalCheckIns} check-in${totalCheckIns === 1 ? '' : 's'} saved in total`}
           >
-            <Flame className={`h-4 w-4 ${streak > 0 ? 'text-orange-300' : 'text-slate-500'}`} aria-hidden="true" />
+            <Flame className={`h-4 w-4 ${streak > 0 ? 'flame-live text-orange-300' : 'text-slate-500'}`} aria-hidden="true" />
             <span>
               <span className="font-semibold">{streak}-day</span> check-in streak
             </span>

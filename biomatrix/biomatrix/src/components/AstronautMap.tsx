@@ -294,7 +294,7 @@ function AstronautSvg({ assessment, vitals, selected, onSelect }: Omit<MapProps,
   return (
     <svg
       viewBox={box.join(' ')}
-      className={`mx-auto h-auto w-full max-w-[380px] ${focusClass}`}
+      className={`body-float mx-auto h-auto w-full max-w-[380px] ${focusClass}`}
       role="group"
       aria-label="Human body map with 5 clickable zones"
     >
@@ -308,6 +308,11 @@ function AstronautSvg({ assessment, vitals, selected, onSelect }: Omit<MapProps,
           <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.35" />
           <stop offset="100%" stopColor="#38bdf8" stopOpacity="0" />
         </radialGradient>
+        <linearGradient id="lm-scan" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#7dd3fc" stopOpacity="0" />
+          <stop offset="80%" stopColor="#7dd3fc" stopOpacity="0.22" />
+          <stop offset="100%" stopColor="#e0f2fe" stopOpacity="0.75" />
+        </linearGradient>
         <filter id="lm-glow" x="-50%" y="-50%" width="200%" height="200%">
           <feGaussianBlur stdDeviation="3.2" result="blur" />
           <feMerge>
@@ -359,6 +364,10 @@ function AstronautSvg({ assessment, vitals, selected, onSelect }: Omit<MapProps,
               style={s.twinkle ? { animationDelay: `${s.delay}s` } : undefined}
             />
           ))}
+        </g>
+        {/* Holographic scan line sweeping down the body (decoration) */}
+        <g clipPath="url(#lm-body-clip)" pointerEvents="none" aria-hidden="true">
+          <rect className="body-scan" x="50" y="-70" width="220" height="70" fill="url(#lm-scan)" />
         </g>
         <path
           className="body-outline"
@@ -503,12 +512,12 @@ export function AstronautMap({ assessment, vitals, selected, onSelect, onClear }
             zone.metrics[0];
           const unit = METRICS[focus].unit;
           return (
-            <li key={id}>
+            <li key={id} className="zone-card-item" style={{ animationDelay: `${index * 70}ms` }}>
               <button
                 type="button"
                 onClick={() => onSelect(id)}
                 aria-label={`${zone.name}: ${style.label}. Open medical guidance.`}
-                className={`group flex w-full items-center gap-3 rounded-lg border bg-slate-950/60 px-3 py-2.5 text-left transition hover:-translate-y-0.5 hover:bg-slate-800/70 hover:shadow-lg hover:shadow-black/40 active:translate-y-0 ${
+                className={`tilt zone-card group flex w-full items-center gap-3 rounded-lg border bg-slate-950/60 px-3 py-2.5 text-left transition hover:-translate-y-0.5 hover:bg-slate-800/70 hover:shadow-lg hover:shadow-black/40 active:translate-y-0 ${
                   selected === id ? 'border-sky-300' : style.border
                 }`}
               >

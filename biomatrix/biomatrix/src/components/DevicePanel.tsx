@@ -53,7 +53,7 @@ export function DevicePanel({ devices, lastSeen, onConnected, onDisconnected, on
           type="button"
           onClick={connect}
           disabled={!supported || busy}
-          className="flex min-h-10 items-center gap-2 rounded-md border border-sky-300/60 bg-sky-400/20 px-3 text-sm font-semibold text-sky-50 transition hover:-translate-y-0.5 hover:bg-sky-400/30 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+          className="btn-shine flex min-h-10 items-center gap-2 rounded-md border border-sky-300/60 bg-sky-400/20 px-3 text-sm font-semibold text-sky-50 transition hover:-translate-y-0.5 hover:bg-sky-400/30 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Bluetooth className="h-4 w-4" aria-hidden="true" />}
           {busy ? 'Connecting...' : 'Connect device'}

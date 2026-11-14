@@ -110,10 +110,10 @@ export function VitalsPanel({
     const fromDevice = metric.fields.map((f) => sources[f.key]).find(Boolean);
 
     return (
-      <div key={id} className="rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-2">
+      <div key={id} className="vital-row rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-2">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="text-sm font-medium text-slate-100">{metric.label}</span>
-          <span className="ml-auto font-mono text-sm font-semibold text-slate-50">
+          <span key={formatMetric(id, vitals)} className="value-pop ml-auto font-mono text-sm font-semibold text-slate-50">
             {formatMetric(id, vitals)}
             {metric.unit && <span className="ml-1 text-xs font-normal text-slate-400">{metric.unit}</span>}
           </span>
@@ -143,7 +143,8 @@ export function VitalsPanel({
               step={field.step}
               value={vitals[field.key]}
               onChange={(e) => onVital(field.key, Number(e.target.value))}
-              className="h-6 w-full cursor-pointer"
+              className="range-pretty w-full cursor-pointer"
+              style={{ ['--fill' as string]: `${((vitals[field.key] - field.min) / (field.max - field.min)) * 100}%` }}
             />
             <NumberField
               field={field}

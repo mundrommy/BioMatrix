@@ -6,6 +6,7 @@ import { CheckInCard, type Reminder } from './components/CheckInCard';
 import { DevicePanel } from './components/DevicePanel';
 import type { ConnectedDevice, DeviceReading } from './bluetooth/healthDevices';
 import { GuidanceDrawer } from './components/GuidanceDrawer';
+import { UiEffects } from './components/UiEffects';
 import { Header } from './components/Header';
 import { SpaceBackground } from './components/SpaceBackground';
 import { IntroSplash } from './components/IntroSplash';
@@ -99,6 +100,13 @@ export default function App() {
   const [intro, setIntro] = useState(true);
   const [now, setNow] = useState(() => new Date());
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Short "saved" message (visual feedback only).
+  const [toast, setToast] = useState<string | null>(null);
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 2600);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
   // Connected Bluetooth devices (they reconnect by pressing "Connect device" again after a reload).
   const [devices, setDevices] = useState<ConnectedDevice[]>([]);
   const [lastSeen, setLastSeen] = useState<Record<string, string>>({});
@@ -162,6 +170,7 @@ export default function App() {
       return { ...s, checkIns, reminders };
     });
     if (!isToday) setSaveDate(today);
+    setToast(isToday ? 'Check-in saved' : `Check-in saved for ${date}`);
   };
 
   // A value arrived from a Bluetooth device: fill it in and mark where it came from.
@@ -237,6 +246,7 @@ export default function App() {
   return (
     <div className="relative min-h-screen text-slate-200">
       <SpaceBackground />
+      <UiEffects />
       <Header
         env={env}
         missionDay={missionDay}
@@ -286,7 +296,7 @@ export default function App() {
             onDismiss={dismissReminder}
           />
 
-          <TriageBanner triage={assessment.triage} env={env} />
+          <TriageBanner key={assessment.triage.level} triage={assessment.triage} env={env} />
 
           <AiExplain assessment={assessment} vitals={state.vitals} env={env} missionDay={missionDay} />
 
@@ -375,6 +385,16 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      {toast && (
+        <div className="toast fixed bottom-6 left-1/2 z-40 flex items-center gap-3 rounded-full border border-emerald-300/50 bg-slate-950/90 px-5 py-3 text-sm font-semibold text-emerald-100 shadow-2xl shadow-emerald-950/60 backdrop-blur-md" role="status">
+          <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
+            <circle className="toast-ring" cx="12" cy="12" r="10" fill="none" stroke="#34d399" strokeWidth="2" />
+            <path className="toast-check" d="M7 12.5 L10.5 16 L17 9" fill="none" stroke="#34d399" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          {toast}
+        </div>
+      )}
 
       {intro && <IntroSplash onDone={finishIntro} />}
 

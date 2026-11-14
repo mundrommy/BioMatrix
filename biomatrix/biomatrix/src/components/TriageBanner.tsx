@@ -31,9 +31,9 @@ export function TriageBanner({ triage, env }: { triage: TriageResult; env: Envir
   const style = LEVEL_STYLE[triage.level];
 
   return (
-    <section aria-live="polite" className={`rounded-xl border-2 shadow-lg shadow-black/30 backdrop-blur-md ${style.box}`}>
+    <section aria-live="polite" className={`triage-enter triage-l${triage.level} reveal rounded-xl border-2 shadow-lg shadow-black/30 backdrop-blur-md ${style.box}`}>
       <div className="flex items-start gap-3 px-4 py-3">
-        <span className={`mt-0.5 shrink-0 ${style.accent}`}>{style.icon}</span>
+        <span className={`triage-icon mt-0.5 shrink-0 ${style.accent}`}>{style.icon}</span>
         <div className="min-w-0 flex-1">
           <p className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${style.accent}`}>
             Autonomous triage | Level {triage.level} of 3

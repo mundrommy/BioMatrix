@@ -82,9 +82,9 @@ export function AiExplain({ assessment, vitals, env, missionDay }: AiExplainProp
   };
 
   return (
-    <section className="rounded-xl border border-violet-400/30 bg-slate-900/60 shadow-lg shadow-black/40 backdrop-blur-md" aria-label="AI explanation">
+    <section className="panel-glow panel-glow-violet reveal rounded-xl border border-violet-400/30 bg-slate-900/60 shadow-lg shadow-black/40 backdrop-blur-md" aria-label="AI explanation">
       <div className="flex flex-wrap items-center gap-3 px-4 py-3">
-        <Sparkles className="h-5 w-5 shrink-0 text-violet-300" aria-hidden="true" />
+        <Sparkles className="sparkle-live h-5 w-5 shrink-0 text-violet-300" aria-hidden="true" />
         <div className="min-w-0 flex-1">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">AI health assistant</p>
           <p className="text-sm text-slate-200">A short, plain-language explanation of today&apos;s results.</p>
@@ -93,7 +93,7 @@ export function AiExplain({ assessment, vitals, env, missionDay }: AiExplainProp
           type="button"
           onClick={explain}
           disabled={state.kind === 'loading'}
-          className="flex min-h-11 items-center gap-2 rounded-md border border-violet-300/50 bg-violet-400/20 px-4 text-sm font-semibold text-violet-50 shadow-md shadow-violet-950/50 transition hover:-translate-y-0.5 hover:bg-violet-400/30 active:translate-y-0 disabled:cursor-wait disabled:opacity-70"
+          className="btn-shine flex min-h-11 items-center gap-2 rounded-md border border-violet-300/50 bg-violet-400/20 px-4 text-sm font-semibold text-violet-50 shadow-md shadow-violet-950/50 transition hover:-translate-y-0.5 hover:bg-violet-400/30 active:translate-y-0 disabled:cursor-wait disabled:opacity-70"
         >
           {state.kind === 'loading' ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Sparkles className="h-4 w-4" aria-hidden="true" />}
           {state.kind === 'loading' ? 'Thinking...' : 'Explain my results'}
@@ -103,7 +103,7 @@ export function AiExplain({ assessment, vitals, env, missionDay }: AiExplainProp
       <div className="border-t border-slate-800 px-4 py-3 text-sm" aria-live="polite">
         {state.kind === 'done' && (
           <>
-            <p className="whitespace-pre-line leading-relaxed text-slate-100">{state.text}</p>
+            <p className="ai-answer whitespace-pre-line leading-relaxed text-slate-100">{state.text}</p>
             <p className="mt-2 text-[11px] text-violet-200">
               AI-generated at {state.at}, based only on your values and the NASA facts in this app. Guidance only, not a medical
               diagnosis.

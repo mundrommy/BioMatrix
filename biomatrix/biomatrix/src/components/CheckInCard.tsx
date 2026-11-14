@@ -49,7 +49,7 @@ export function CheckInCard({
   const upcoming = reminders.filter((r) => new Date(r.due) > now).sort((a, b) => a.due.localeCompare(b.due));
 
   return (
-    <section className="rounded-xl border border-slate-700/60 bg-slate-900/60 shadow-lg shadow-black/40 backdrop-blur-md" aria-label="Daily check-in">
+    <section className="panel-glow reveal rounded-xl border border-slate-700/60 bg-slate-900/60 shadow-lg shadow-black/40 backdrop-blur-md" aria-label="Daily check-in">
       <div className="flex flex-wrap items-center gap-3 px-4 py-3">
         {savedAt ? (
           <CheckCircle2 className="h-6 w-6 shrink-0 text-emerald-300" aria-hidden="true" />
@@ -74,7 +74,7 @@ export function CheckInCard({
         <button
           type="button"
           onClick={onSave}
-          className="flex min-h-11 items-center gap-2 rounded-md border border-sky-300/60 bg-sky-400/20 px-4 text-sm font-semibold text-sky-50 shadow-md shadow-sky-950/50 transition hover:-translate-y-0.5 hover:bg-sky-400/30 active:translate-y-0"
+          className="btn-shine flex min-h-11 items-center gap-2 rounded-md border border-sky-300/60 bg-sky-400/20 px-4 text-sm font-semibold text-sky-50 shadow-md shadow-sky-950/50 transition hover:-translate-y-0.5 hover:bg-sky-400/30 active:translate-y-0"
         >
           <Save className="h-4 w-4" aria-hidden="true" />
           {pastDay ? `Save for ${pastDayLabel}` : savedAt ? 'Update check-in' : 'Save check-in'}
@@ -107,8 +107,8 @@ export function CheckInCard({
       {(due.length > 0 || upcoming.length > 0) && (
         <div className="space-y-2 border-t border-slate-800 px-4 py-3" role="status" aria-live="polite">
           {due.map((r) => (
-            <div key={r.metric} className="flex flex-wrap items-center gap-2 rounded-md border border-amber-400/50 bg-amber-400/10 px-3 py-2 text-sm text-amber-100">
-              <BellRing className="h-4 w-4 shrink-0 text-amber-300" aria-hidden="true" />
+            <div key={r.metric} className="reminder-in flex flex-wrap items-center gap-2 rounded-md border border-amber-400/50 bg-amber-400/10 px-3 py-2 text-sm text-amber-100">
+              <BellRing className="bell-ring h-4 w-4 shrink-0 text-amber-300" aria-hidden="true" />
               <span className="flex-1">
                 Time to measure <span className="font-semibold">{METRICS[r.metric].label}</span> again.
               </span>
