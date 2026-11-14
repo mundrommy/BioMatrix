@@ -34,6 +34,15 @@ The app helps an astronaut **gather** health indicators, **evaluate** them at a 
   - *Readiness*: GO / CAUTION / NO-GO for EVA and safety-critical work, with what has to change to clear each item.
   - *Do now*: one ordered protocol, one step at a time, with timers. Every step done or skipped is logged and goes
     into the flight surgeon report, together with the time the earliest reply from Earth can arrive.
+- **Live heart monitor** (the one sensor that really streams live: a Bluetooth heart-rate strap):
+  - a rolling 60-second buffer analysed every second for sudden jumps or drops (25+ bpm within 15 s), confirmed by
+    3 readings in a row and a median filter so a strap glitch does not raise a false alarm;
+  - an *At rest / Exercising* switch, because a fast rise during exercise or EVA work is normal;
+  - adaptive telemetry modes: **Nominal cruise** (1 summary packet per minute), **Drift watch** (slow rise in resting
+    heart rate, 1 packet every 10 s and a countdown to the 120 bpm red limit) and **Burst capture** (acute alarm,
+    every reading kept). A real alarm feeds the Autonomy Copilot steps and the EVA readiness.
+  - **Crew Training Drill**: a clearly badged, simulated heart-rate stream (stable rest, slow rise, sudden jump) that runs
+    through exactly the same analysis. It never changes the vitals form, the saved check-ins or the flight surgeon report.
 - **Flight surgeon report**: one button builds a full report (triage, out-of-range values, symptoms, all readings with
   their source, recommended actions, last 7 check-ins) to print, save as PDF, download as text or copy.
 - **History trend chart** built from the saved check-ins.
@@ -100,12 +109,14 @@ online version. To test it locally, use `npx vercel dev`.
 src/
   data/spaceHealthEngine.ts   All health data, ranges, sources, environments, check-in helpers and the triage logic
   data/autonomyCopilot.ts     Linked patterns, personal baseline and trend forecast, readiness, protocol (pure functions)
+  data/liveHeartMonitor.ts    Ring buffer, acute and drift analysis, telemetry modes, drill heart-rate script
   components/
     Header.tsx                Mission day, environment switcher, streak, Earth-link status
     CheckInCard.tsx           Save today's check-in, log a missed day, reminders
     DevicePanel.tsx           "Connect device" for Bluetooth health devices
     AiExplain.tsx             "Explain my results" (calls /api/explain)
     AutonomyCopilot.tsx       Autonomy Copilot panel: readiness, linked patterns, forecast, step-by-step protocol
+    LiveHeartPanel.tsx        Live heart monitor panel, the useLiveHeart hook and the Crew Training Drill
     SpaceBackground.tsx       Animated space background
     IntroSplash.tsx           Opening animation
     BioMatrixLogo.tsx         Logo
@@ -133,6 +144,9 @@ Every threshold, fact and countermeasure in `spaceHealthEngine.ts` has a `source
 The Autonomy Copilot's pattern rules, readiness rules, drift limits and straight-line forecasts are also
 team design choices (tagged "Illustrative"); they are decision support, not medical predictions. Where a link
 between signals is backed by NASA (CO2 and headaches on the ISS, solar-storm sheltering), the source is shown.
+
+The live heart monitor's alarm, drift and telemetry rules are team design choices too (tagged "Illustrative");
+only the normal resting range (60–100 bpm, Mayo Clinic) and the app's red limits come from the existing sources.
 
 Illustrative values (for example the cut-offs for SpO2, cabin CO2, reaction time, hydration,
 radiation dose, daily radiation rates and the Rover environment) are our own design choices to make

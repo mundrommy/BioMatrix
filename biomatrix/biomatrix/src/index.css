@@ -815,3 +815,30 @@ input[type="range"] {
     opacity: 1;
   }
 }
+
+/* ============================ Live heart monitor ============================ */
+
+.live-heart {
+  animation: live-heart 1s ease-in-out infinite;
+}
+@keyframes live-heart {
+  0%, 100% { transform: scale(1); }
+  15% { transform: scale(1.25); }
+  30% { transform: scale(1); }
+}
+.live-burst {
+  animation: live-burst 0.9s ease-in-out infinite;
+}
+@keyframes live-burst {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(251, 113, 133, 0); }
+  50% { box-shadow: 0 0 0 4px rgba(251, 113, 133, 0.35); }
+}
+/* Training drill badge: hazard stripes so it is never mistaken for real telemetry */
+.drill-badge {
+  background-image: repeating-linear-gradient(-45deg, rgba(251, 191, 36, 0.28) 0 6px, rgba(251, 191, 36, 0.08) 6px 12px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-heart, .live-burst {
+    animation: none;
+  }
+}

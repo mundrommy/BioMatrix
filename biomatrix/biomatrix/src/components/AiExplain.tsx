@@ -57,7 +57,7 @@ export function AiExplain({ assessment, vitals, env, missionDay, copilot }: AiEx
     payload.facts = [
       ...(copilot
         ? [
-            ...copilot.patterns.map(
+            ...copilot.patterns.filter((p) => !p.drill).map(
               (p) => `Linked pattern: ${p.title} Signals: ${p.evidence.join(', ')}. ${p.explanation.text} (source: ${sourceLabel(p.explanation.source)})`,
             ),
             `Readiness for ${copilot.readiness.task}: ${copilot.readiness.verdict.toUpperCase()}.`,

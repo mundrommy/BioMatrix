@@ -12,6 +12,7 @@ import { SurgeonReport } from './components/SurgeonReport';
 import { Header } from './components/Header';
 import { SpaceBackground } from './components/SpaceBackground';
 import { IntroSplash } from './components/IntroSplash';
+import { LiveHeartPanel, useLiveHeart } from './components/LiveHeartPanel';
 import { TrendPanel } from './components/TrendPanel';
 import { TriageBanner } from './components/TriageBanner';
 import { VitalsPanel } from './components/VitalsPanel';
@@ -125,6 +126,9 @@ export default function App() {
   const [lastSeen, setLastSeen] = useState<Record<string, string>>({});
   // Devices the user disconnected: late packets from them are ignored.
   const disconnectedIds = useRef(new Set<string>());
+  // Live heart monitor (Bluetooth strap) and the Crew Training Drill.
+  const live = useLiveHeart();
+  const pushLiveHeart = live.pushReal;
 
   // A clock for reminders and for the date changing at midnight.
   useEffect(() => {
@@ -152,8 +156,8 @@ export default function App() {
   const streak = useMemo(() => checkInStreak(state.checkIns, today), [state.checkIns, today]);
   // Autonomy Copilot: linked patterns, forecast, readiness and the step-by-step protocol.
   const copilot = useMemo(
-    () => runCopilot(assessment, state.vitals, state.symptoms, env, history, missionDay, now),
-    [assessment, state.vitals, state.symptoms, env, history, missionDay, now],
+    () => runCopilot(assessment, state.vitals, state.symptoms, env, history, missionDay, now, live.copilotInput),
+    [assessment, state.vitals, state.symptoms, env, history, missionDay, now, live.copilotInput],
   );
   const todayLog = useMemo(() => state.copilotLog.filter((e) => e.date === today), [state.copilotLog, today]);
   const logCopilotStep = (action: CopilotAction, outcome: CopilotLogEntry['outcome']) =>
@@ -203,6 +207,8 @@ export default function App() {
   const onDeviceReading = useCallback((reading: DeviceReading, deviceName: string, deviceId: string) => {
     if (disconnectedIds.current.has(deviceId)) return;
     setLastSeen((l) => ({ ...l, [deviceId]: new Date().toISOString() }));
+    // Heart rate is the one value that streams live: it also feeds the live heart monitor.
+    if (reading.kind === 'heartRate') pushLiveHeart(reading.bpm, deviceName);
     setState((s) => {
       const vitals = { ...s.vitals };
       const sources = { ...s.sources };
@@ -223,7 +229,7 @@ export default function App() {
       }
       return { ...s, vitals, sources };
     });
-  }, []);
+  }, [pushLiveHeart]);
 
   const onDeviceConnected = useCallback((device: ConnectedDevice) => {
     disconnectedIds.current.delete(device.id);
@@ -332,6 +338,13 @@ export default function App() {
           />
 
           <TriageBanner key={assessment.triage.level} triage={assessment.triage} env={env} onReport={() => setReportOpen(true)} />
+
+          <LiveHeartPanel
+            live={live}
+            hasHeartDevice={devices.some((d) => d.capabilities.includes('Heart rate'))}
+            now={now}
+            onShowSteps={() => document.getElementById('autonomy-copilot')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          />
 
           <AiExplain assessment={assessment} vitals={state.vitals} env={env} missionDay={missionDay} copilot={copilot} />
 

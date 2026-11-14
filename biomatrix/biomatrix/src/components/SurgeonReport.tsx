@@ -75,7 +75,10 @@ function sourceOf(id: MetricId, sources: DeviceSources): string {
  * health in one document. It can be printed / saved as PDF, downloaded as text, or copied.
  */
 export function SurgeonReport(props: SurgeonReportProps) {
-  const { assessment, vitals, symptoms, sources, env, missionDay, missionStart, checkIns, savedAt, copilot, copilotLog, onClose } = props;
+  const { assessment, vitals, symptoms, sources, env, missionDay, missionStart, checkIns, savedAt, onClose } = props;
+  // Crew Training Drill results are practice, never part of the medical report.
+  const copilot = { ...props.copilot, patterns: props.copilot.patterns.filter((p) => !p.drill) };
+  const copilotLog = props.copilotLog.filter((e) => !e.actionId.startsWith('drill-'));
   const { readiness } = copilot;
   const readinessItems = [
     ...readiness.blockers.map((b) => `NO-GO: ${b.text} (clears when: ${b.clears})`),

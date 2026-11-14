@@ -33,6 +33,7 @@ import {
   type Symptoms,
   type Vitals,
 } from './spaceHealthEngine';
+import type { Activity, LiveAlarm } from './liveHeartMonitor';
 
 const RANK: Record<Status, number> = { green: 0, yellow: 1, red: 2 };
 
@@ -40,7 +41,17 @@ const RANK: Record<Status, number> = { green: 0, yellow: 1, red: 2 };
 // Types
 // ---------------------------------------------------------------------------
 
-export type PatternKind = 'space-weather' | 'oxygen' | 'cabin-air' | 'infection' | 'fluids' | 'fatigue';
+export type PatternKind = 'space-weather' | 'acute-heart' | 'oxygen' | 'cabin-air' | 'infection' | 'fluids' | 'fatigue';
+
+/** A live heart-rate alarm from the Live Heart Monitor (real strap or Crew Training Drill). */
+export interface LiveCopilotInput {
+  alarm: LiveAlarm;
+  /** True for the Crew Training Drill: shown with a drill badge, never in the report. */
+  drill: boolean;
+  activity: Activity;
+  /** Device name, or "Crew Training Drill". */
+  sourceName: string;
+}
 
 export interface CopilotAction {
   /** Stable id, used to remember which steps are done today. */
@@ -69,6 +80,8 @@ export interface LinkedPattern {
   /** Why these signals belong together. */
   explanation: Fact;
   actions: CopilotAction[];
+  /** Comes from the Crew Training Drill (simulated heart rate), not from real data. */
+  drill?: boolean;
 }
 
 export type ReadinessVerdict = 'go' | 'caution' | 'no-go';
@@ -166,7 +179,45 @@ const SYMPTOM_SHORT: Record<keyof Symptoms, string> = {
 // 1. Linked patterns (body + habitat + space weather)
 // ---------------------------------------------------------------------------
 
-const PATTERN_ORDER: PatternKind[] = ['space-weather', 'oxygen', 'cabin-air', 'infection', 'fluids', 'fatigue'];
+const PATTERN_ORDER: PatternKind[] = ['space-weather', 'acute-heart', 'oxygen', 'cabin-air', 'infection', 'fluids', 'fatigue'];
+
+const ACUTE_TITLES: Record<LiveAlarm['kind'], string> = {
+  spike: 'Sudden heart-rate jump at rest: treat it as urgent until it is checked.',
+  drop: 'Sudden heart-rate drop: stop and watch for fainting.',
+  high: 'Heart rate above the safe limit: stop and rest now.',
+  low: 'Very slow heart rate: stop and get a crewmate.',
+};
+
+/** Live heart-rate alarm -> linked pattern. Drill steps get ids starting with "drill-". */
+export function acuteHeartPattern(live: LiveCopilotInput): LinkedPattern {
+  const id = (x: string) => (live.drill ? `drill-${x}` : x);
+  return {
+    id: 'acute-heart',
+    title: ACUTE_TITLES[live.alarm.kind],
+    severity: 'red',
+    crewWide: false,
+    drill: live.drill,
+    evidence: [
+      live.alarm.short,
+      `${Math.round(live.alarm.bpm)} bpm now`,
+      live.activity === 'rest' ? 'At rest' : 'During exercise',
+      `Live: ${live.sourceName}`,
+    ],
+    ruledOut: ['Single-reading glitch (confirmed by 3 readings)'],
+    explanation: METRICS.heartRate.why,
+    actions: [
+      { id: id('hr-stop'), text: 'Stop what you are doing, sit or lie down, and stay still.', source: ILLUSTRATIVE },
+      { id: id('hr-buddy'), text: 'Call a crewmate to stay with you.', source: ILLUSTRATIVE, crew: true },
+      { id: id('hr-measure'), text: 'Take a blood-pressure and SpO2 reading now and enter them.', source: ILLUSTRATIVE },
+      {
+        id: id('hr-recheck'),
+        text: 'If your heart rate is not back below 100 bpm after 5 minutes of rest, call the Crew Medical Officer.',
+        source: ILLUSTRATIVE,
+        waitMinutes: 5,
+      },
+    ],
+  };
+}
 
 export function findLinkedPatterns(a: Assessment, v: Vitals, s: Symptoms, env: Environment): LinkedPattern[] {
   const out: LinkedPattern[] = [];
@@ -401,10 +452,21 @@ function resolveConflicts(patterns: LinkedPattern[]): Fact | null {
 // 2. Readiness for EVA and safety-critical work
 // ---------------------------------------------------------------------------
 
-export function assessReadiness(a: Assessment, v: Vitals, s: Symptoms, env: Environment): Readiness {
+export function assessReadiness(
+  a: Assessment,
+  v: Vitals,
+  s: Symptoms,
+  env: Environment,
+  live?: LiveCopilotInput | null,
+): Readiness {
   const blockers: ReadinessItem[] = [];
   const cautions: ReadinessItem[] = [];
   const m = a.metrics;
+
+  // A real live alarm blocks EVA; a training drill never changes the real readiness.
+  if (live && !live.drill) {
+    blockers.push({ text: `Live heart-rate alarm (${live.alarm.short})`, clears: 'Heart rate stable at rest and checked by the CMO' });
+  }
 
   if (v.spe) blockers.push({ text: 'Solar particle event in progress', clears: 'Space-weather all-clear' });
   if (s.fainting) blockers.push({ text: 'Fainting reported', clears: 'Medical clearance' });
@@ -668,10 +730,15 @@ export function runCopilot(
   history: DayRecord[],
   missionDay: number,
   now: Date,
+  live?: LiveCopilotInput | null,
 ): CopilotResult {
   const patterns = findLinkedPatterns(a, v, s, env);
+  if (live) {
+    patterns.push(acuteHeartPattern(live));
+    patterns.sort((x, y) => PATTERN_ORDER.indexOf(x.id) - PATTERN_ORDER.indexOf(y.id));
+  }
   const conflict = resolveConflicts(patterns);
-  const readiness = assessReadiness(a, v, s, env);
+  const readiness = assessReadiness(a, v, s, env, live);
   return {
     patterns,
     conflict,

@@ -114,6 +114,7 @@ export function AutonomyCopilot({ result, log, onLog, onRestart, onOpenReport }:
 
   return (
     <section
+      id="autonomy-copilot"
       className="panel-glow panel-glow-cyan reveal rounded-xl border border-cyan-400/30 bg-slate-900/60 shadow-lg shadow-black/40 backdrop-blur-md"
       aria-label="Autonomy Copilot"
     >
@@ -173,6 +174,11 @@ export function AutonomyCopilot({ result, log, onLog, onRestart, onOpenReport }:
                     <StatusBadge status={p.severity} />
                   </div>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {p.drill && (
+                      <span className="drill-badge inline-flex items-center rounded border border-amber-300/70 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-100">
+                        Training drill
+                      </span>
+                    )}
                     {p.crewWide && (
                       <span className="inline-flex items-center gap-1 rounded-full border border-violet-400/50 bg-violet-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-200">
                         <Users className="h-3 w-3" aria-hidden="true" />
@@ -302,6 +308,9 @@ export function AutonomyCopilot({ result, log, onLog, onRestart, onOpenReport }:
                           {done ? <Check className="h-3 w-3" aria-hidden="true" /> : i + 1}
                         </span>
                         <span className={`min-w-0 flex-1 ${done ? 'text-slate-400 line-through decoration-slate-600' : active ? 'font-semibold text-slate-50' : 'text-slate-300'}`}>
+                          {step.id.startsWith('drill-') && (
+                            <span className="mr-1 rounded border border-amber-300/60 px-1 text-[10px] font-bold uppercase text-amber-200">Drill</span>
+                          )}
                           {step.text}{' '}
                           {step.crew && <Users className="inline h-3.5 w-3.5 text-violet-300" aria-label="involves the crew" />}
                         </span>
