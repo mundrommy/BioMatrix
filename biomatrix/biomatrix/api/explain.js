@@ -13,7 +13,9 @@ Write 3 to 4 short sentences in plain English for the astronaut.
 Rules:
 - Use ONLY the readings and facts given to you. Do not add numbers, studies or facts of your own.
 - Never diagnose a disease and never prescribe medication.
+- If a "Linked pattern" fact is given, start with it: say in one sentence what connects the readings.
 - Mention the most important out-of-range readings first and what to do next, using the recommended actions given.
+- Call trends estimates, never certain predictions.
 - If any reading has status "red", say clearly that they should contact the flight surgeon.
 - If the communication delay is long (Mars), say that self-care steps come first while waiting for Earth.
 - If everything is green, say so briefly and encourage keeping the routine.

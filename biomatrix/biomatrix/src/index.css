@@ -776,3 +776,42 @@ input[type="range"] {
     margin: 0;
   }
 }
+
+/* ============================ Autonomy Copilot ============================ */
+
+.panel-glow-cyan:hover {
+  background-image: radial-gradient(420px circle at var(--mx) var(--my), rgba(34, 211, 238, 0.11), transparent 65%);
+  border-color: rgba(103, 232, 249, 0.5);
+  box-shadow: 0 18px 50px -18px rgba(6, 182, 212, 0.4), 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+}
+/* The copilot "core" breathes slowly: it is always running */
+.copilot-core {
+  animation: copilot-core 3.2s ease-in-out infinite;
+  filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.55));
+}
+@keyframes copilot-core {
+  0%, 100% { opacity: 0.75; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+.copilot-card {
+  animation: reveal-up 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.copilot-card:nth-child(2) { animation-delay: 0.08s; }
+.copilot-card:nth-child(3) { animation-delay: 0.16s; }
+/* The current step glows so it is found at a glance */
+.copilot-active {
+  box-shadow: 0 0 0 1px rgba(103, 232, 249, 0.25), 0 0 22px -6px rgba(34, 211, 238, 0.55);
+}
+.timer-done {
+  animation: timer-done 1.2s ease-in-out infinite;
+}
+@keyframes timer-done {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+  50% { box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.25); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .copilot-core, .copilot-card, .timer-done {
+    animation: none;
+    opacity: 1;
+  }
+}

@@ -43,6 +43,9 @@ export const SRC = {
   medlineGlucose: 'https://medlineplus.gov/ency/article/003482.htm',
   merckFever: 'https://merckmanuals.com/home/infections/biology-of-infectious-disease/fever-in-adults',
   cdcSleep: 'https://www.cdc.gov/mmwr/volumes/65/wr/mm6506a1.htm',
+  co2Headache: 'https://ntrs.nasa.gov/citations/20160012725',
+  radiationMoon:
+    'https://science.nasa.gov/science-research/heliophysics/how-nasa-will-protect-astronauts-from-space-radiation-at-the-moon',
 } as const;
 
 /** Human-readable names for every source URL (used by the UI and the Sources list). */
@@ -69,6 +72,8 @@ export const SOURCE_LABELS: Record<string, string> = {
   [SRC.medlineGlucose]: 'MedlinePlus: Blood glucose test',
   [SRC.merckFever]: 'Merck Manual: Fever in adults',
   [SRC.cdcSleep]: 'CDC MMWR: Healthy sleep duration among adults',
+  [SRC.co2Headache]: 'NASA NTRS: CO2 levels and reported congestion and headaches on the ISS',
+  [SRC.radiationMoon]: 'NASA Science: How NASA will protect astronauts from space radiation at the Moon',
 };
 
 export function isIllustrative(source: string): boolean {
@@ -143,6 +148,7 @@ export interface Symptoms {
   blurredVision: boolean;
   shortBreath: boolean;
   irritation: boolean; // eye / airway irritation (e.g. dust)
+  headache: boolean;
 }
 
 export const NO_SYMPTOMS: Symptoms = {
@@ -151,6 +157,7 @@ export const NO_SYMPTOMS: Symptoms = {
   blurredVision: false,
   shortBreath: false,
   irritation: false,
+  headache: false,
 };
 
 export const SYMPTOM_LABELS: Record<keyof Symptoms, string> = {
@@ -159,6 +166,7 @@ export const SYMPTOM_LABELS: Record<keyof Symptoms, string> = {
   blurredVision: 'Blurred vision',
   shortBreath: 'Shortness of breath',
   irritation: 'Eye or airway irritation (dust)',
+  headache: 'Headache',
 };
 
 /** One day of the 14-day history. */

@@ -2,6 +2,7 @@ import { Activity, BookOpen, SlidersHorizontal, Trash2, TrendingUp } from 'lucid
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AiExplain } from './components/AiExplain';
 import { AstronautMap } from './components/AstronautMap';
+import { AutonomyCopilot, type CopilotLogEntry } from './components/AutonomyCopilot';
 import { CheckInCard, type Reminder } from './components/CheckInCard';
 import { DevicePanel } from './components/DevicePanel';
 import type { ConnectedDevice, DeviceReading } from './bluetooth/healthDevices';
@@ -39,6 +40,7 @@ import {
   type Vitals,
   type ZoneId,
 } from './data/spaceHealthEngine';
+import { runCopilot, type CopilotAction } from './data/autonomyCopilot';
 
 const STORAGE_KEY = 'biomatrix-data-v2';
 
@@ -55,6 +57,8 @@ interface SavedState {
   /** One saved check-in per day, oldest first. */
   checkIns: CheckIn[];
   reminders: Reminder[];
+  /** Steps done or skipped in the Autonomy Copilot protocol (they go into the report). */
+  copilotLog: CopilotLogEntry[];
 }
 
 function freshState(): SavedState {
@@ -66,6 +70,7 @@ function freshState(): SavedState {
     sources: {},
     checkIns: [],
     reminders: [],
+    copilotLog: [],
   };
 }
 
@@ -83,7 +88,13 @@ function loadState(): SavedState {
         Array.isArray(saved.checkIns) &&
         Array.isArray(saved.reminders)
       ) {
-        return { ...saved, vitals: { ...DEFAULT_VITALS, ...saved.vitals }, sources: saved.sources ?? {} };
+        return {
+          ...saved,
+          vitals: { ...DEFAULT_VITALS, ...saved.vitals },
+          symptoms: { ...NO_SYMPTOMS, ...saved.symptoms },
+          sources: saved.sources ?? {},
+          copilotLog: Array.isArray(saved.copilotLog) ? saved.copilotLog : [],
+        };
       }
     }
   } catch {
@@ -139,6 +150,19 @@ export default function App() {
     [state.vitals, state.symptoms, env, history],
   );
   const streak = useMemo(() => checkInStreak(state.checkIns, today), [state.checkIns, today]);
+  // Autonomy Copilot: linked patterns, forecast, readiness and the step-by-step protocol.
+  const copilot = useMemo(
+    () => runCopilot(assessment, state.vitals, state.symptoms, env, history, missionDay, now),
+    [assessment, state.vitals, state.symptoms, env, history, missionDay, now],
+  );
+  const todayLog = useMemo(() => state.copilotLog.filter((e) => e.date === today), [state.copilotLog, today]);
+  const logCopilotStep = (action: CopilotAction, outcome: CopilotLogEntry['outcome']) =>
+    setState((s) => ({
+      ...s,
+      // Keep the last 300 entries: enough for weeks of use, small enough for browser storage.
+      copilotLog: [...s.copilotLog, { date: today, actionId: action.id, text: action.text, at: new Date().toISOString(), outcome }].slice(-300),
+    }));
+  const restartCopilot = () => setState((s) => ({ ...s, copilotLog: s.copilotLog.filter((e) => e.date !== today) }));
 
   // Save to the browser on every change (works fully offline).
   useEffect(() => {
@@ -280,6 +304,14 @@ export default function App() {
             </p>
           </Panel>
 
+          <AutonomyCopilot
+            result={copilot}
+            log={todayLog}
+            onLog={logCopilotStep}
+            onRestart={restartCopilot}
+            onOpenReport={() => setReportOpen(true)}
+          />
+
           <Panel title="History trend" icon={<TrendingUp className="h-4 w-4 text-sky-300" aria-hidden="true" />}>
             <TrendPanel history={history} vitals={state.vitals} missionDay={missionDay} />
           </Panel>
@@ -301,7 +333,7 @@ export default function App() {
 
           <TriageBanner key={assessment.triage.level} triage={assessment.triage} env={env} onReport={() => setReportOpen(true)} />
 
-          <AiExplain assessment={assessment} vitals={state.vitals} env={env} missionDay={missionDay} />
+          <AiExplain assessment={assessment} vitals={state.vitals} env={env} missionDay={missionDay} copilot={copilot} />
 
           <Panel
             title="Vitals input"
@@ -410,6 +442,8 @@ export default function App() {
           missionStart={state.missionStart}
           checkIns={state.checkIns}
           savedAt={todayCheckIn?.savedAt ?? null}
+          copilot={copilot}
+          copilotLog={todayLog}
           onClose={closeReport}
         />
       )}

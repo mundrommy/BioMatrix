@@ -9,12 +9,15 @@ import {
   type Environment,
   type Vitals,
 } from '../data/spaceHealthEngine';
+import type { CopilotResult } from '../data/autonomyCopilot';
 
 interface AiExplainProps {
   assessment: Assessment;
   vitals: Vitals;
   env: Environment;
   missionDay: number;
+  /** Linked patterns, readiness and forecasts from the Autonomy Copilot. */
+  copilot?: CopilotResult;
 }
 
 type State =
@@ -28,7 +31,7 @@ type State =
  * serverless function, which asks Google Gemini for a short plain-language summary.
  * The AI is told to use only the facts we send and never to diagnose.
  */
-export function AiExplain({ assessment, vitals, env, missionDay }: AiExplainProps) {
+export function AiExplain({ assessment, vitals, env, missionDay, copilot }: AiExplainProps) {
   const [state, setState] = useState<State>({ kind: 'idle' });
 
   const explain = async () => {
@@ -46,7 +49,23 @@ export function AiExplain({ assessment, vitals, env, missionDay }: AiExplainProp
         note: assessment.metrics[id].note,
       })),
       // Only these facts may be used by the AI.
-      facts: outOfRange.flatMap((id) => {
+      facts: [] as string[],
+    };
+
+    // Linked patterns first (most useful), then the per-indicator facts. The server reads at most 40
+    // facts and rejects bodies over 12,000 characters, so trim to fit.
+    payload.facts = [
+      ...(copilot
+        ? [
+            ...copilot.patterns.map(
+              (p) => `Linked pattern: ${p.title} Signals: ${p.evidence.join(', ')}. ${p.explanation.text} (source: ${sourceLabel(p.explanation.source)})`,
+            ),
+            `Readiness for ${copilot.readiness.task}: ${copilot.readiness.verdict.toUpperCase()}.`,
+            ...copilot.forecasts.map((f) => `Trend (straight-line estimate, not a medical prediction): ${f.text}`),
+            ...copilot.drifts.map((d) => `Personal baseline: ${d.text}`),
+          ]
+        : []),
+      ...outOfRange.flatMap((id) => {
         const m = METRICS[id];
         const status = assessment.metrics[id].status;
         const actions = status === 'red' ? m.countermeasures.red : m.countermeasures.yellow;
@@ -55,7 +74,8 @@ export function AiExplain({ assessment, vitals, env, missionDay }: AiExplainProp
           ...actions.map((a) => `${m.label} - recommended action: ${a.text} (source: ${sourceLabel(a.source)})`),
         ];
       }),
-    };
+    ].slice(0, 40);
+    while (payload.facts.length > 0 && JSON.stringify(payload).length > 11500) payload.facts.pop();
 
     try {
       // Never wait more than 30 s for an answer.

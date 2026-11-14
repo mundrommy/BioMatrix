@@ -25,6 +25,15 @@ The app helps an astronaut **gather** health indicators, **evaluate** them at a 
   because a reply from Earth can take 40+ minutes.
 - **Mission settings**: environment (ISS, Lunar Base, Mars Transit, Pressurized Rover) and mission start date,
   which sets the mission day.
+- **Autonomy Copilot** (built for deep space, where Earth can be 40 minutes away round trip):
+  - *What's happening*: links body, cabin-air and space-weather signals into one likely cause
+    (for example high CO2 + headache + slow reactions = "fix the air, warn the whole crew"), says what was ruled out,
+    and resolves conflicting protocols (solar-storm shelter beats moving to cleaner air).
+  - *What happens next*: learns the astronaut's personal normal from their own check-ins, flags "hidden drift"
+    (still in the normal range but unusual for them) and forecasts when a trend will reach a worse range.
+  - *Readiness*: GO / CAUTION / NO-GO for EVA and safety-critical work, with what has to change to clear each item.
+  - *Do now*: one ordered protocol, one step at a time, with timers. Every step done or skipped is logged and goes
+    into the flight surgeon report, together with the time the earliest reply from Earth can arrive.
 - **Flight surgeon report**: one button builds a full report (triage, out-of-range values, symptoms, all readings with
   their source, recommended actions, last 7 check-ins) to print, save as PDF, download as text or copy.
 - **History trend chart** built from the saved check-ins.
@@ -90,11 +99,13 @@ online version. To test it locally, use `npx vercel dev`.
 ```
 src/
   data/spaceHealthEngine.ts   All health data, ranges, sources, environments, check-in helpers and the triage logic
+  data/autonomyCopilot.ts     Linked patterns, personal baseline and trend forecast, readiness, protocol (pure functions)
   components/
     Header.tsx                Mission day, environment switcher, streak, Earth-link status
     CheckInCard.tsx           Save today's check-in, log a missed day, reminders
     DevicePanel.tsx           "Connect device" for Bluetooth health devices
     AiExplain.tsx             "Explain my results" (calls /api/explain)
+    AutonomyCopilot.tsx       Autonomy Copilot panel: readiness, linked patterns, forecast, step-by-step protocol
     SpaceBackground.tsx       Animated space background
     IntroSplash.tsx           Opening animation
     BioMatrixLogo.tsx         Logo
@@ -119,6 +130,10 @@ Every threshold, fact and countermeasure in `spaceHealthEngine.ts` has a `source
 - a link to a NASA, CSA or medical reference page, **or**
 - the tag **"Illustrative (team design, not a NASA/CSA threshold)"**.
 
+The Autonomy Copilot's pattern rules, readiness rules, drift limits and straight-line forecasts are also
+team design choices (tagged "Illustrative"); they are decision support, not medical predictions. Where a link
+between signals is backed by NASA (CO2 and headaches on the ISS, solar-storm sheltering), the source is shown.
+
 Illustrative values (for example the cut-offs for SpO2, cabin CO2, reaction time, hydration,
 radiation dose, daily radiation rates and the Rover environment) are our own design choices to make
 the prototype work. They are not NASA or CSA thresholds. The app shows this tag next to each of them.
@@ -142,6 +157,8 @@ the prototype work. They are not NASA or CSA thresholds. The app shows this tag 
 - [NASA: Risk from Inadequate Sleep and Irregular Schedules](https://www.nasa.gov/reference/risk-from-inadequate-sleep-and-irregular-schedules/)
 - [NASA: Risk of Behavioral Conditions and Psychiatric Disorders](https://www.nasa.gov/reference/risk-of-behavioral-conditions-and-psychiatric-disorders/)
 - [NASA: Risk of Radiation-Induced Cancers](https://www.nasa.gov/reference/risk-of-radiation-induced-cancers/)
+- [NASA NTRS: Relationship Between Carbon Dioxide Levels and Reported Congestion and Headaches on the ISS](https://ntrs.nasa.gov/citations/20160012725)
+- [NASA Science: How NASA Will Protect Astronauts From Space Radiation at the Moon](https://science.nasa.gov/science-research/heliophysics/how-nasa-will-protect-astronauts-from-space-radiation-at-the-moon)
 
 ### Space agency partner resources
 

@@ -17,6 +17,8 @@ import {
   type Symptoms,
   type Vitals,
 } from '../data/spaceHealthEngine';
+import type { CopilotResult } from '../data/autonomyCopilot';
+import type { CopilotLogEntry } from './AutonomyCopilot';
 
 interface SurgeonReportProps {
   assessment: Assessment;
@@ -29,6 +31,9 @@ interface SurgeonReportProps {
   checkIns: CheckIn[];
   /** Time of today's saved check-in, or null if the values are not saved yet. */
   savedAt: string | null;
+  /** Autonomy Copilot results and today's logged actions. */
+  copilot: CopilotResult;
+  copilotLog: CopilotLogEntry[];
   onClose: () => void;
 }
 
@@ -50,6 +55,10 @@ const HISTORY_COLUMNS: { label: string; value: (v: Vitals) => string }[] = [
   { label: 'Mood (/10)', value: (v) => String(Math.round(v.mood)) },
 ];
 
+const VERDICT_WORD = { go: 'GO', caution: 'CAUTION', 'no-go': 'NO-GO' } as const;
+const OUTCOME_WORD = { started: 'Timer started', done: 'Done', skipped: 'Skipped' } as const;
+const clock = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
 const dateTime = (d: Date) =>
   d.toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 const longDate = (date: string) =>
@@ -66,7 +75,13 @@ function sourceOf(id: MetricId, sources: DeviceSources): string {
  * health in one document. It can be printed / saved as PDF, downloaded as text, or copied.
  */
 export function SurgeonReport(props: SurgeonReportProps) {
-  const { assessment, vitals, symptoms, sources, env, missionDay, missionStart, checkIns, savedAt, onClose } = props;
+  const { assessment, vitals, symptoms, sources, env, missionDay, missionStart, checkIns, savedAt, copilot, copilotLog, onClose } = props;
+  const { readiness } = copilot;
+  const readinessItems = [
+    ...readiness.blockers.map((b) => `NO-GO: ${b.text} (clears when: ${b.clears})`),
+    ...readiness.cautions.map((c) => `Caution: ${c.text} (clears when: ${c.clears})`),
+  ];
+  const trendLines = [...copilot.forecasts.map((f) => f.text), ...copilot.drifts.map((d) => d.text)];
   const [generatedAt] = useState(() => new Date());
   const [copied, setCopied] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -111,6 +126,19 @@ export function SurgeonReport(props: SurgeonReportProps) {
     }
     out.push('', 'SYMPTOMS REPORTED', line);
     out.push(reportedSymptoms.length ? reportedSymptoms.map((k) => `- ${SYMPTOM_LABELS[k]}`).join('\n') : 'None.');
+    out.push('', 'AUTONOMY COPILOT (onboard analysis)', line);
+    out.push(`Readiness for ${readiness.task}: ${VERDICT_WORD[readiness.verdict]}`);
+    readinessItems.forEach((r) => out.push(`- ${r}`));
+    out.push('Linked patterns:');
+    if (copilot.patterns.length === 0) out.push('- None.');
+    for (const p of copilot.patterns) {
+      out.push(`- ${p.title}${p.crewWide ? ' [whole crew]' : ''} Signals: ${p.evidence.join(', ')}.${p.ruledOut.length ? ` Ruled out: ${p.ruledOut.join(', ')}.` : ''}`);
+    }
+    if (copilot.conflict) out.push(`- ${copilot.conflict.text}`);
+    out.push('Trends (straight-line estimates from saved check-ins):');
+    out.push(trendLines.length ? trendLines.map((t) => `- ${t}`).join('\n') : '- None found.');
+    out.push('Actions taken onboard today:');
+    out.push(copilotLog.length ? copilotLog.map((e) => `- ${clock(e.at)} ${OUTCOME_WORD[e.outcome]}: ${e.text}`).join('\n') : '- None logged yet.');
     out.push('', 'ALL READINGS', line);
     for (const id of METRIC_ORDER) {
       const m = METRICS[id];
@@ -299,6 +327,66 @@ export function SurgeonReport(props: SurgeonReportProps) {
 
           <Heading>Symptoms reported</Heading>
           <p className="text-sm">{reportedSymptoms.length ? reportedSymptoms.map((k) => SYMPTOM_LABELS[k]).join(', ') : 'None.'}</p>
+
+          <Heading>Autonomy Copilot (onboard analysis)</Heading>
+          <p className="text-sm">
+            <span className="font-semibold">Readiness for {readiness.task}: </span>
+            <span
+              className={`inline-block rounded border px-1.5 py-0.5 text-[11px] font-bold ${
+                readiness.verdict === 'no-go'
+                  ? STATUS_CLASS.red
+                  : readiness.verdict === 'caution'
+                    ? STATUS_CLASS.yellow
+                    : STATUS_CLASS.green
+              }`}
+            >
+              {VERDICT_WORD[readiness.verdict]}
+            </span>
+          </p>
+          {readinessItems.length > 0 && (
+            <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm">
+              {readinessItems.map((r) => (
+                <li key={r}>{r}</li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-2 text-sm font-semibold">Linked patterns</p>
+          {copilot.patterns.length === 0 ? (
+            <p className="text-sm">None.</p>
+          ) : (
+            <ul className="list-disc space-y-0.5 pl-5 text-sm">
+              {copilot.patterns.map((p) => (
+                <li key={p.id}>
+                  {p.title}
+                  {p.crewWide ? ' (whole crew)' : ''} <span className="text-slate-600">Signals: {p.evidence.join(', ')}.</span>
+                  {p.ruledOut.length > 0 && <span className="text-slate-600"> Ruled out: {p.ruledOut.join(', ')}.</span>}
+                </li>
+              ))}
+              {copilot.conflict && <li>{copilot.conflict.text}</li>}
+            </ul>
+          )}
+          <p className="mt-2 text-sm font-semibold">Trends (straight-line estimates from saved check-ins)</p>
+          {trendLines.length === 0 ? (
+            <p className="text-sm">None found.</p>
+          ) : (
+            <ul className="list-disc space-y-0.5 pl-5 text-sm">
+              {trendLines.map((t) => (
+                <li key={t}>{t}</li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-2 text-sm font-semibold">Actions taken onboard today</p>
+          {copilotLog.length === 0 ? (
+            <p className="text-sm">None logged yet.</p>
+          ) : (
+            <ul className="space-y-0.5 text-sm">
+              {copilotLog.map((e) => (
+                <li key={`${e.actionId}-${e.at}`}>
+                  <span className="font-mono text-slate-600">{clock(e.at)}</span> {OUTCOME_WORD[e.outcome]}: {e.text}
+                </li>
+              ))}
+            </ul>
+          )}
 
           {triage.level > 0 && (
             <>
