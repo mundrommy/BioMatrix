@@ -153,7 +153,7 @@ export function SurgeonReport(props: SurgeonReportProps) {
       out.push('', 'STEPS FOR THE ASTRONAUT', line);
       triage.steps.forEach((s, i) => out.push(`${i + 1}. ${s}`));
       out.push('', 'RECOMMENDED COUNTERMEASURES', line);
-      triage.actions.forEach((a) => out.push(`- ${a.text} (${sourceLabel(a.source)})`));
+      triage.actions.forEach((a) => out.push(`- ${a.text}${sourceLabel(a.source) ? ` (${sourceLabel(a.source)})` : ''}`));
     }
     out.push('', `HISTORY (last ${history.length} saved check-in${history.length === 1 ? '' : 's'})`, line);
     if (history.length === 0) out.push('No saved check-ins yet.');
@@ -163,7 +163,7 @@ export function SurgeonReport(props: SurgeonReportProps) {
           HISTORY_COLUMNS.map((col) => `${col.label} ${col.value(c.vitals)}`).join(', '),
       );
     }
-    out.push('', line, DISCLAIMER, 'Thresholds marked "Illustrative" in BioMatrix are design choices, not NASA/CSA thresholds.');
+    out.push('', line, DISCLAIMER);
     return out.join('\n');
   };
 
@@ -403,7 +403,8 @@ export function SurgeonReport(props: SurgeonReportProps) {
               <ul className="list-disc space-y-0.5 pl-5 text-sm">
                 {triage.actions.map((a) => (
                   <li key={a.text}>
-                    {a.text} <span className="text-xs text-slate-500">({sourceLabel(a.source)})</span>
+                    {a.text}{' '}
+                    {sourceLabel(a.source) && <span className="text-xs text-slate-500">({sourceLabel(a.source)})</span>}
                   </li>
                 ))}
               </ul>
@@ -471,7 +472,6 @@ export function SurgeonReport(props: SurgeonReportProps) {
 
           <footer className="mt-6 border-t border-slate-300 pt-3 text-xs text-slate-600">
             <p className="font-semibold text-slate-800">{DISCLAIMER}</p>
-            <p>Thresholds marked "Illustrative" in BioMatrix are design choices, not NASA/CSA thresholds.</p>
           </footer>
         </article>
       </div>

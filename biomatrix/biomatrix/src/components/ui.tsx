@@ -45,18 +45,9 @@ export function StatusBadge({ status, className = '' }: { status: Status; classN
   );
 }
 
-/** Shows where a fact comes from: a link to the source, or an "Illustrative" tag. */
+/** Shows where a fact comes from as a link. Facts without an external source show nothing. */
 export function SourceTag({ source }: { source: string }) {
-  if (isIllustrative(source)) {
-    return (
-      <span
-        className="inline-flex items-center rounded border border-slate-600 bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-300"
-        title={source}
-      >
-        Illustrative
-      </span>
-    );
-  }
+  if (isIllustrative(source)) return null;
   return (
     <a
       href={source}

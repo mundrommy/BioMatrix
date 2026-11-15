@@ -21,7 +21,6 @@ import {
   DEFAULT_VITALS,
   DISCLAIMER,
   ENVIRONMENTS,
-  ILLUSTRATIVE,
   METRIC_ORDER,
   NO_SYMPTOMS,
   REMEASURE_HOURS,
@@ -406,10 +405,6 @@ export default function App() {
                 </li>
               ))}
             </ul>
-            <p className="mt-2 max-w-3xl">
-              Values tagged <SourceTag source={ILLUSTRATIVE} /> are team design choices for this prototype. They are not NASA or
-              CSA thresholds.
-            </p>
           </details>
 
           <div className="flex flex-wrap items-center justify-between gap-3">

@@ -136,21 +136,19 @@ api/
 
 ## Scientific accuracy
 
-Every threshold, fact and countermeasure in `spaceHealthEngine.ts` has a `source`:
+Health facts, ranges and countermeasures link to their NASA, CSA or medical source in the app wherever one exists.
+Key limits were checked against official references, for example:
 
-- a link to a NASA, CSA or medical reference page, **or**
-- the tag **"Illustrative (team design, not a NASA/CSA threshold)"**.
+- cabin CO2 red at 4000 ppm, close to NASA's 3 mmHg limit (NASA OCHMO CO2 technical brief);
+- radiation dose red at 600 mSv, NASA's career limit (NASA OCHMO radiation protection brief);
+- blood oxygen 95–100% normal, under 90% low (Mayo Clinic); breathing rate 12–20 at rest (American Lung Association);
+- reaction time of 500 ms or more counted as a lapse (Psychomotor Vigilance Task);
+- about 2 hours of exercise a day on long missions (CSA); about 2.2 L or more of drinks a day (National Academies via Mayo Clinic);
+- low blood sugar below 70 mg/dL and re-testing after 15 minutes (CDC).
 
-The Autonomy Copilot's pattern rules, readiness rules, drift limits and straight-line forecasts are also
-team design choices (tagged "Illustrative"); they are decision support, not medical predictions. Where a link
-between signals is backed by NASA (CO2 and headaches on the ISS, solar-storm sheltering), the source is shown.
-
-The live heart monitor's alarm, drift and telemetry rules are team design choices too (tagged "Illustrative");
-only the normal resting range (60–100 bpm, Mayo Clinic) and the app's red limits come from the existing sources.
-
-Illustrative values (for example the cut-offs for SpO2, cabin CO2, reaction time, hydration,
-radiation dose, daily radiation rates and the Rover environment) are our own design choices to make
-the prototype work. They are not NASA or CSA thresholds. The app shows this tag next to each of them.
+The Autonomy Copilot's pattern rules, readiness rules and trend estimates, the live heart monitor's alarm rules, and the
+in-between (yellow) bands are the team's own decision-support design for this prototype. They are guidance, not a medical
+diagnosis; the flight surgeon makes medical decisions.
 
 ## Sources & Credits
 
@@ -171,6 +169,8 @@ the prototype work. They are not NASA or CSA thresholds. The app shows this tag 
 - [NASA: Risk from Inadequate Sleep and Irregular Schedules](https://www.nasa.gov/reference/risk-from-inadequate-sleep-and-irregular-schedules/)
 - [NASA: Risk of Behavioral Conditions and Psychiatric Disorders](https://www.nasa.gov/reference/risk-of-behavioral-conditions-and-psychiatric-disorders/)
 - [NASA: Risk of Radiation-Induced Cancers](https://www.nasa.gov/reference/risk-of-radiation-induced-cancers/)
+- [NASA OCHMO: Carbon Dioxide technical brief](https://www.nasa.gov/wp-content/uploads/2023/12/ochmo-tb-004-carbon-dioxide.pdf)
+- [NASA OCHMO: Radiation Protection technical brief](https://www.nasa.gov/wp-content/uploads/2023/03/radiation-protection-technical-brief-ochmo.pdf)
 - [NASA NTRS: Relationship Between Carbon Dioxide Levels and Reported Congestion and Headaches on the ISS](https://ntrs.nasa.gov/citations/20160012725)
 - [NASA Science: How NASA Will Protect Astronauts From Space Radiation at the Moon](https://science.nasa.gov/science-research/heliophysics/how-nasa-will-protect-astronauts-from-space-radiation-at-the-moon)
 
@@ -186,6 +186,12 @@ the prototype work. They are not NASA or CSA thresholds. The app shows this tag 
 - [MedlinePlus: Blood glucose test](https://medlineplus.gov/ency/article/003482.htm)
 - [Merck Manual: Fever in adults](https://merckmanuals.com/home/infections/biology-of-infectious-disease/fever-in-adults)
 - [CDC MMWR: Healthy sleep duration among adults](https://www.cdc.gov/mmwr/volumes/65/wr/mm6506a1.htm)
+- [Mayo Clinic: Low blood oxygen (hypoxemia)](https://www.mayoclinic.org/symptoms/hypoxemia/basics/causes/sym-20050930)
+- [American Lung Association: Respiratory rate](https://www.lung.org/blog/respiratory-rate-vital-signs)
+- [CDC: Treatment of low blood sugar](https://www.cdc.gov/diabetes/treatment/treatment-low-blood-sugar-hypoglycemia.html)
+- [Mayo Clinic: How much water do you need?](https://www.mayoclinic.org/healthy-lifestyle/nutrition-and-healthy-eating/in-depth/water/art-20044256)
+- [PsyToolkit: Psychomotor Vigilance Task](https://www.psytoolkit.org/experiment-library/pvtb.html)
+- [CSA: Physical activity in space](https://asc-csa.gc.ca/eng/astronauts/living-exercising.asp)
 
 ### Open-source libraries
 

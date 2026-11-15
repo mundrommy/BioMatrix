@@ -31,6 +31,9 @@ type State =
  * serverless function, which asks Google Gemini for a short plain-language summary.
  * The AI is told to use only the facts we send and never to diagnose.
  */
+/** " (source: X)" for facts with a source, nothing otherwise. */
+const src = (source: string) => (sourceLabel(source) ? ` (source: ${sourceLabel(source)})` : '');
+
 export function AiExplain({ assessment, vitals, env, missionDay, copilot }: AiExplainProps) {
   const [state, setState] = useState<State>({ kind: 'idle' });
 
@@ -58,7 +61,7 @@ export function AiExplain({ assessment, vitals, env, missionDay, copilot }: AiEx
       ...(copilot
         ? [
             ...copilot.patterns.filter((p) => !p.drill).map(
-              (p) => `Linked pattern: ${p.title} Signals: ${p.evidence.join(', ')}. ${p.explanation.text} (source: ${sourceLabel(p.explanation.source)})`,
+              (p) => `Linked pattern: ${p.title} Signals: ${p.evidence.join(', ')}. ${p.explanation.text}${src(p.explanation.source)}`,
             ),
             `Readiness for ${copilot.readiness.task}: ${copilot.readiness.verdict.toUpperCase()}.`,
             ...copilot.forecasts.map((f) => `Trend (straight-line estimate, not a medical prediction): ${f.text}`),
@@ -70,8 +73,8 @@ export function AiExplain({ assessment, vitals, env, missionDay, copilot }: AiEx
         const status = assessment.metrics[id].status;
         const actions = status === 'red' ? m.countermeasures.red : m.countermeasures.yellow;
         return [
-          `${m.label} - why it matters in space: ${m.why.text} (source: ${sourceLabel(m.why.source)})`,
-          ...actions.map((a) => `${m.label} - recommended action: ${a.text} (source: ${sourceLabel(a.source)})`),
+          `${m.label} - why it matters in space: ${m.why.text}${src(m.why.source)}`,
+          ...actions.map((a) => `${m.label} - recommended action: ${a.text}${src(a.source)}`),
         ];
       }),
     ].slice(0, 40);

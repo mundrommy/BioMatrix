@@ -154,11 +154,13 @@ export function GuidanceDrawer({ zoneId, assessment, vitals, onClose }: DrawerPr
                             <span className="font-semibold text-rose-300">Critical:</span> {metric.ranges.red}
                           </li>
                         </ul>
-                        <p className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                          <span className="text-slate-500">Source:</span>
-                          <SourceTag source={metric.source} />
-                          {metric.moreSources?.map((s) => <SourceTag key={s} source={s} />)}
-                        </p>
+                        {(metric.source || (metric.moreSources ?? []).some(Boolean)) && (
+                          <p className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                            <span className="text-slate-500">Source:</span>
+                            <SourceTag source={metric.source} />
+                            {metric.moreSources?.map((s) => <SourceTag key={s} source={s} />)}
+                          </p>
+                        )}
                         {metric.thresholdNote && <p className="mt-1 text-[11px] text-slate-500">{metric.thresholdNote}</p>}
                       </div>
 

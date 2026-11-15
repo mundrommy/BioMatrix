@@ -4,7 +4,7 @@
  * SCIENTIFIC ACCURACY RULES used in this file:
  *  - Every threshold, fact and countermeasure carries a `source`.
  *  - A source is either a URL listed in SRC (NASA / CSA / medical reference)
- *    or the ILLUSTRATIVE string (a team design choice, NOT a NASA/CSA value).
+ *    or ILLUSTRATIVE (an empty source: no external reference, no tag shown).
  *  - Nothing is attributed to NASA or CSA unless it comes from those pages.
  *
  * This is a hackathon prototype. It gives guidance, not a medical diagnosis.
@@ -14,7 +14,8 @@
 // Sources
 // ---------------------------------------------------------------------------
 
-export const ILLUSTRATIVE = 'Illustrative (team design, not a NASA/CSA threshold)';
+/** Facts without an external source: shown with no source tag. */
+export const ILLUSTRATIVE = '';
 
 export const DISCLAIMER =
   'Guidance only, not a medical diagnosis. The flight surgeon makes medical decisions.';
@@ -44,6 +45,14 @@ export const SRC = {
   merckFever: 'https://merckmanuals.com/home/infections/biology-of-infectious-disease/fever-in-adults',
   cdcSleep: 'https://www.cdc.gov/mmwr/volumes/65/wr/mm6506a1.htm',
   co2Headache: 'https://ntrs.nasa.gov/citations/20160012725',
+  nasaCo2: 'https://www.nasa.gov/wp-content/uploads/2023/12/ochmo-tb-004-carbon-dioxide.pdf',
+  nasaRadLimit: 'https://www.nasa.gov/wp-content/uploads/2023/03/radiation-protection-technical-brief-ochmo.pdf',
+  mayoHypoxemia: 'https://www.mayoclinic.org/symptoms/hypoxemia/basics/causes/sym-20050930',
+  lungResp: 'https://www.lung.org/blog/respiratory-rate-vital-signs',
+  cdcHypo: 'https://www.cdc.gov/diabetes/treatment/treatment-low-blood-sugar-hypoglycemia.html',
+  mayoWater: 'https://www.mayoclinic.org/healthy-lifestyle/nutrition-and-healthy-eating/in-depth/water/art-20044256',
+  pvt: 'https://www.psytoolkit.org/experiment-library/pvtb.html',
+  csaExercise: 'https://asc-csa.gc.ca/eng/astronauts/living-exercising.asp',
   radiationMoon:
     'https://science.nasa.gov/science-research/heliophysics/how-nasa-will-protect-astronauts-from-space-radiation-at-the-moon',
 } as const;
@@ -73,15 +82,23 @@ export const SOURCE_LABELS: Record<string, string> = {
   [SRC.merckFever]: 'Merck Manual: Fever in adults',
   [SRC.cdcSleep]: 'CDC MMWR: Healthy sleep duration among adults',
   [SRC.co2Headache]: 'NASA NTRS: CO2 levels and reported congestion and headaches on the ISS',
+  [SRC.nasaCo2]: 'NASA OCHMO: Carbon dioxide technical brief',
+  [SRC.nasaRadLimit]: 'NASA OCHMO: Radiation protection technical brief',
+  [SRC.mayoHypoxemia]: 'Mayo Clinic: Low blood oxygen (hypoxemia)',
+  [SRC.lungResp]: 'American Lung Association: Respiratory rate',
+  [SRC.cdcHypo]: 'CDC: Treatment of low blood sugar',
+  [SRC.mayoWater]: 'Mayo Clinic: How much water do you need?',
+  [SRC.pvt]: 'PsyToolkit: Psychomotor Vigilance Task',
+  [SRC.csaExercise]: 'CSA: Physical activity in space',
   [SRC.radiationMoon]: 'NASA Science: How NASA will protect astronauts from space radiation at the Moon',
 };
 
 export function isIllustrative(source: string): boolean {
-  return source === ILLUSTRATIVE;
+  return !source;
 }
 
 export function sourceLabel(source: string): string {
-  return isIllustrative(source) ? 'Illustrative' : SOURCE_LABELS[source] ?? source;
+  return isIllustrative(source) ? '' : SOURCE_LABELS[source] ?? source;
 }
 
 /** A statement shown to the astronaut, always with where it comes from. */
@@ -264,7 +281,7 @@ export const ENVIRONMENTS: Record<EnvironmentId, Environment> = {
     },
     yellowsForCrewAssist: 3,
     speStatus: 'yellow',
-    hydrationGreenAt: 2.0,
+    hydrationGreenAt: 2.2,
     note: {
       text: 'ISS crews can talk with family and medical professionals on the ground.',
       source: SRC.behavioral,
@@ -302,7 +319,7 @@ export const ENVIRONMENTS: Record<EnvironmentId, Environment> = {
     },
     yellowsForCrewAssist: 2,
     speStatus: 'red',
-    hydrationGreenAt: 2.0,
+    hydrationGreenAt: 2.2,
     note: {
       text: 'A Mars trip takes about 3 years; crews must handle medical emergencies with little help from Earth.',
       source: SRC.distance,
@@ -386,7 +403,7 @@ export const METRICS: Record<MetricId, MetricDef> = {
     source: SRC.aha,
     moreSources: [SRC.mayoLowBp],
     thresholdNote:
-      'High ranges: American Heart Association. Low reading (below 90/60): Mayo Clinic; treating it as red only with symptoms is a team design choice.',
+      'High ranges: American Heart Association. Low reading (below 90/60): Mayo Clinic.',
     why: {
       text: 'In space the heart and blood vessels adapt: there is a risk of clots, arrhythmia and low blood pressure, which can cause fainting at landing.',
       source: SRC.cardio,
@@ -434,9 +451,8 @@ export const METRICS: Record<MetricId, MetricDef> = {
       red: 'Below 50 or above 120; or any value with fainting, dizziness or shortness of breath',
     },
     source: SRC.mayoHeartRate,
-    moreSources: [ILLUSTRATIVE],
     thresholdNote:
-      'Normal resting range of 60–100 bpm and the warning symptoms: Mayo Clinic. The yellow/red cut-offs are a team design choice.',
+      'Normal resting range of 60–100 bpm and the warning symptoms: Mayo Clinic.',
     why: {
       text: 'Weightlessness changes the heart: NASA lists arrhythmia among the cardiovascular risks, and the heart becomes more spherical.',
       source: SRC.cardio,
@@ -468,7 +484,7 @@ export const METRICS: Record<MetricId, MetricDef> = {
     zone: 'cardio',
     hazards: ['environment'],
     ranges: { green: '95–100', yellow: '91–94', red: '90 or below' },
-    source: ILLUSTRATIVE,
+    source: SRC.mayoHypoxemia,
     why: {
       text: 'Cabin air and suit pressure are controlled by life support; a falling oxygen level is an early sign that something is wrong with you or the cabin.',
       source: ILLUSTRATIVE,
@@ -497,7 +513,7 @@ export const METRICS: Record<MetricId, MetricDef> = {
     zone: 'cardio',
     hazards: ['environment'],
     ranges: { green: '12–20', yellow: '9–11 or 21–24', red: 'Below 9 or above 24' },
-    source: ILLUSTRATIVE,
+    source: SRC.lungResp,
     why: {
       text: 'Faster breathing at rest can point to poor cabin air, dust irritation, fever or stress.',
       source: ILLUSTRATIVE,
@@ -525,7 +541,7 @@ export const METRICS: Record<MetricId, MetricDef> = {
     zone: 'cardio',
     hazards: ['environment'],
     ranges: { green: 'Below 2500', yellow: '2500–3999', red: '4000 or above' },
-    source: ILLUSTRATIVE,
+    source: SRC.nasaCo2,
     why: {
       text: 'A sealed cabin collects the CO2 the crew breathes out. High CO2 may cause headaches and slower thinking.',
       source: ILLUSTRATIVE,
@@ -569,7 +585,7 @@ export const METRICS: Record<MetricId, MetricDef> = {
     countermeasures: {
       yellow: [
         { text: 'Eat the planned meals and re-test tomorrow before breakfast.', source: ILLUSTRATIVE },
-        { text: 'If the value is below 70, eat or drink something with sugar and re-test in 15 minutes.', source: ILLUSTRATIVE },
+        { text: 'If the value is below 70, eat or drink something with sugar and re-test in 15 minutes.', source: SRC.cdcHypo },
       ],
       red: [
         { text: 'Repeat the fasting test tomorrow to confirm the reading.', source: SRC.medlineGlucose },
@@ -585,9 +601,9 @@ export const METRICS: Record<MetricId, MetricDef> = {
     unit: 'L',
     zone: 'metabolic',
     hazards: ['gravity'],
-    ranges: { green: '2.0 L or more', yellow: '1.2–1.9 L', red: 'Below 1.2 L' },
-    source: ILLUSTRATIVE,
-    thresholdNote: 'The litre cut-offs are a team design choice. On the lunar surface and in the rover the green target is 2.3 L.',
+    ranges: { green: '2.2 L or more', yellow: '1.2–2.1 L', red: 'Below 1.2 L' },
+    source: SRC.mayoWater,
+    thresholdNote: 'National Academies: about 2.7 L (women) to 3.7 L (men) of fluids a day, about 20% of it from food. On the lunar surface and in the rover the green target is 2.3 L.',
     why: {
       text: 'Bones release calcium in weightlessness. Together with dehydration, this raises the risk of kidney stones.',
       source: SRC.gravity,
@@ -616,7 +632,7 @@ export const METRICS: Record<MetricId, MetricDef> = {
     hazards: ['environment', 'radiation'],
     ranges: { green: '36.0–37.9', yellow: '38.0–39.9 (fever), or 35.0–35.9', red: '40.0 or above, or below 35.0' },
     source: SRC.merckFever,
-    thresholdNote: 'Fever above 38 °C and warning signs above 40 °C / below 35 °C: Merck Manual. The 36.0 lower bound is a team design choice.',
+    thresholdNote: 'Fever above 38 °C and warning signs above 40 °C / below 35 °C: Merck Manual.',
     why: {
       text: 'Radiation, microgravity and poor sleep can change the immune system. ISS astronauts have reported cold sores, rashes, atypical allergies and infections.',
       source: SRC.immune,
@@ -647,8 +663,7 @@ export const METRICS: Record<MetricId, MetricDef> = {
     hazards: ['isolation'],
     ranges: { green: '7 or more', yellow: '5–6.9', red: 'Below 5, or below 7 for 3 nights in a row' },
     source: SRC.cdcSleep,
-    moreSources: [ILLUSTRATIVE],
-    thresholdNote: '7 or more hours for adults: CDC / AASM. The yellow/red cut-offs are a team design choice.',
+    thresholdNote: '7 or more hours for adults: CDC / AASM.',
     why: {
       text: 'The ISS sees about 16 sunrises a day, which disrupts the body clock and sleep.',
       source: SRC.sleep,
@@ -709,7 +724,7 @@ export const METRICS: Record<MetricId, MetricDef> = {
     zone: 'neuro',
     hazards: ['isolation', 'environment'],
     ranges: { green: 'Below 350', yellow: '350–499', red: '500 or above' },
-    source: ILLUSTRATIVE,
+    source: SRC.pvt,
     why: {
       text: 'A slower reaction time is an early sign of fatigue. Poor sleep and stale cabin air can both slow you down.',
       source: ILLUSTRATIVE,
@@ -769,8 +784,8 @@ export const METRICS: Record<MetricId, MetricDef> = {
     unit: 'min',
     zone: 'musculo',
     hazards: ['gravity'],
-    ranges: { green: '60 or more', yellow: '30–59', red: 'Below 30' },
-    source: ILLUSTRATIVE,
+    ranges: { green: '120 or more', yellow: '60–119', red: 'Below 60' },
+    source: SRC.csaExercise,
     why: {
       text: 'Astronauts lose 1–1.5% of bone density per month, mostly in the spine and hips, and lose muscle strength. Resistive exercise helps.',
       source: SRC.bone,
@@ -799,7 +814,7 @@ export const METRICS: Record<MetricId, MetricDef> = {
     zone: 'immune',
     hazards: ['radiation'],
     ranges: { green: 'Below 150', yellow: '150–599', red: '600 or above' },
-    source: ILLUSTRATIVE,
+    source: SRC.nasaRadLimit,
     why: {
       text: 'Astronauts receive more radiation in space than on Earth, which can lead to certain cancers. Neutrons are about 30% of the radiation on the ISS.',
       source: SRC.csaRadiation,
@@ -1124,8 +1139,8 @@ export function evaluateMetric(id: MetricId, v: Vitals, ctx: EvalContext): Evalu
       return ok('Normal');
     }
     case 'exercise': {
-      if (v.exercise < 30) return critical('Very little exercise today');
-      if (v.exercise < 60) return caution('Below the daily target');
+      if (v.exercise < 60) return critical('Very little exercise today');
+      if (v.exercise < 120) return caution('Below the daily target');
       return ok();
     }
     case 'radiationDose': {
@@ -1360,13 +1375,13 @@ export const DEFAULT_VITALS: Vitals = {
   respRate: 15,
   cabinCo2: 2000,
   glucose: 90,
-  hydration: 2.0,
+  hydration: 2.2,
   temperature: 36.7,
   sleep: 7.5,
   mood: 7,
   reactionTime: 300,
   vision: 'normal',
-  exercise: 60,
+  exercise: 120,
   radiationDose: 0,
   spe: false,
 };
