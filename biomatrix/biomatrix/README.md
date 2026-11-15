@@ -48,6 +48,11 @@ The app helps an astronaut **gather** health indicators, **evaluate** them at a 
 - **History trend chart** built from the saved check-ins.
 - **Check-in streak** counter and **in-app reminders** ("time to measure again") for out-of-range values.
 - **AI "Explain my results"**: a short plain-language summary from Google Gemini, limited to the app's own facts.
+  With no internet, or if the AI fails or takes too long, the app shows its own **onboard summary** instead (built on
+  the device from the triage, the Autonomy Copilot and the out-of-range values; clearly marked "Not AI-generated").
+- **Works offline**: after the first online visit, a service worker keeps the app on the device, so it opens and runs in
+  Airplane Mode. A header chip shows the state: `ONLINE · OFFLINE READY` or `ONBOARD AUTONOMOUS — OFFLINE READY`.
+  It can also be installed to the home screen (web app manifest).
 - **15-second reaction test** (PVT-style mini-game).
 - **Private by design**: check-ins are stored only in the browser (`localStorage`). "Delete my data" removes them.
   Only the AI button sends today's values (no name) to the server.
@@ -100,8 +105,23 @@ The API key is kept on the server and never reaches the browser.
 3. Optional: add `GEMINI_MODEL` to choose another Gemini model (default: `gemini-flash-latest`).
 4. Redeploy.
 
-With `npm run dev` only the app runs, not the function, so the button shows a message that the AI works on the
-online version. To test it locally, use `npx vercel dev`.
+With `npm run dev` only the app runs, not the function, so the button shows the onboard summary instead.
+To test the AI locally, use `npx vercel dev`.
+
+### Offline mode
+
+`public/sw.js` (service worker) and `public/manifest.webmanifest` need no extra packages. The service worker is
+registered only in the production build (`npm run build`), so `npm run dev` always shows your latest code.
+
+- **First visit must be online.** The service worker then saves the page, scripts, styles, icons and manifest.
+- After that the app opens with no internet. Check-ins, settings and device readings are saved in `localStorage`.
+- Page loads try the network first (so new deploys arrive) and fall back to the saved copy; `/api/` calls are never cached.
+- To force every device to download a fresh copy, change `VERSION` in `public/sw.js`.
+
+Check it: open the published app online, wait until the header shows `ONLINE · OFFLINE READY`, turn on Airplane Mode,
+reload. The app opens, the chip shows `ONBOARD AUTONOMOUS — OFFLINE READY`, and "Explain my results" shows the onboard
+summary. In Chrome DevTools: Application > Service workers (status "activated"), Cache storage > `biomatrix-v1`, and
+Network > "Offline" to test without Airplane Mode.
 
 ## Project structure
 
@@ -110,11 +130,13 @@ src/
   data/spaceHealthEngine.ts   All health data, ranges, sources, environments, check-in helpers and the triage logic
   data/autonomyCopilot.ts     Linked patterns, personal baseline and trend forecast, readiness, protocol (pure functions)
   data/liveHeartMonitor.ts    Ring buffer, acute and drift analysis, telemetry modes, drill heart-rate script
+  data/onboardSummary.ts      Offline "Explain my results" text, built on the device (no AI, no internet)
   components/
-    Header.tsx                Mission day, environment switcher, streak, Earth-link status
+    Header.tsx                Mission day, environment switcher, streak, online/offline chip, Earth-link status
+    OnboardStatus.tsx         Online / offline-ready status chip and hook
     CheckInCard.tsx           Save today's check-in, log a missed day, reminders
     DevicePanel.tsx           "Connect device" for Bluetooth health devices
-    AiExplain.tsx             "Explain my results" (calls /api/explain)
+    AiExplain.tsx             "Explain my results" (calls /api/explain; onboard summary when offline or on failure)
     AutonomyCopilot.tsx       Autonomy Copilot panel: readiness, linked patterns, forecast, step-by-step protocol
     LiveHeartPanel.tsx        Live heart monitor panel, the useLiveHeart hook and the Crew Training Drill
     SpaceBackground.tsx       Animated space background
@@ -130,6 +152,10 @@ src/
     ui.tsx                    Status badge, source tag, panel
   App.tsx                     Page layout, saved check-ins, reminders
   bluetooth/healthDevices.ts  Web Bluetooth connection and parsers for the standard health services
+  main.tsx                    Starts the app and registers the service worker (production build only)
+public/
+  sw.js                       Service worker: saves the app on the device so it opens offline
+  manifest.webmanifest        Name, colours and icons for installing the app
 api/
   explain.js                  Vercel serverless function for the AI explanation (Google Gemini)
 ```

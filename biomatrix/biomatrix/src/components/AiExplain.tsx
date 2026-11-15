@@ -1,4 +1,4 @@
-import { Loader2, Sparkles } from 'lucide-react';
+import { Cpu, Loader2, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import {
   METRICS,
@@ -10,6 +10,7 @@ import {
   type Vitals,
 } from '../data/spaceHealthEngine';
 import type { CopilotResult } from '../data/autonomyCopilot';
+import { buildOnboardSummary, type OnboardSummary } from '../data/onboardSummary';
 
 interface AiExplainProps {
   assessment: Assessment;
@@ -24,20 +25,34 @@ type State =
   | { kind: 'idle' }
   | { kind: 'loading' }
   | { kind: 'done'; text: string; at: string }
-  | { kind: 'error'; message: string };
+  /** The AI could not be reached: the app's own summary, plus a short plain reason. */
+  | { kind: 'onboard'; summary: OnboardSummary; at: string; reason: string };
+
+const timeNow = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+/** " (source: X)" for facts with a source, nothing otherwise. */
+const src = (source: string) => (sourceLabel(source) ? ` (source: ${sourceLabel(source)})` : '');
 
 /**
  * "Explain my results": sends today's values (no name or personal details) to our
  * serverless function, which asks Google Gemini for a short plain-language summary.
  * The AI is told to use only the facts we send and never to diagnose.
+ *
+ * With no internet, or when the AI fails or times out, the app shows its own onboard summary
+ * (built from the health engine and the Autonomy Copilot) instead of an error.
  */
-/** " (source: X)" for facts with a source, nothing otherwise. */
-const src = (source: string) => (sourceLabel(source) ? ` (source: ${sourceLabel(source)})` : '');
-
 export function AiExplain({ assessment, vitals, env, missionDay, copilot }: AiExplainProps) {
   const [state, setState] = useState<State>({ kind: 'idle' });
 
+  const onboard = (reason: string) =>
+    setState({ kind: 'onboard', summary: buildOnboardSummary(assessment, env, missionDay, copilot), at: timeNow(), reason });
+
   const explain = async () => {
+    // No connection: answer at once from the app itself, nothing is sent.
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      onboard('No internet connection');
+      return;
+    }
     setState({ kind: 'loading' });
     const outOfRange = assessment.triage.findings.map((f) => f.metric);
     const payload = {
@@ -93,30 +108,23 @@ export function AiExplain({ assessment, vitals, env, missionDay, copilot }: AiEx
       const isJson = res.headers.get('content-type')?.includes('application/json') ?? false;
       const data = isJson ? ((await res.json().catch(() => null)) as { text?: string; error?: string } | null) : null;
       if (!res.ok || !data?.text) {
-        const message =
+        onboard(
           res.status === 404 || !isJson
-            ? 'The AI explanation works on the online version of BioMatrix (hosted on Vercel). It is not available when the app runs only on this computer.'
-            : data?.error === 'missing_key'
-              ? 'The AI is not set up yet: the GEMINI_API_KEY setting is missing on the server.'
+            ? 'The AI service is not available on this copy of the app'
+            : data?.error === 'missing_key' || data?.error === 'bad_key'
+              ? 'The AI is not set up on the server'
               : data?.error === 'timeout'
-                ? 'The AI took too long to answer. Please try again.'
+                ? 'The AI took too long to answer'
                 : data?.error === 'busy'
-                  ? 'Google\'s AI is very busy right now. Please try again in a minute.'
-                  : data?.error === 'bad_key'
-                    ? 'The AI key was rejected. Check GEMINI_API_KEY in the Vercel settings.'
-              : 'The AI could not answer right now. Please try again in a minute.';
-        setState({ kind: 'error', message });
+                  ? 'The AI service is busy'
+                  : 'The AI could not answer',
+        );
         return;
       }
-      setState({ kind: 'done', text: data.text, at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
+      setState({ kind: 'done', text: data.text, at: timeNow() });
     } catch (err) {
       const aborted = (err as { name?: string })?.name === 'AbortError';
-      setState({
-        kind: 'error',
-        message: aborted
-          ? 'The AI took too long to answer. Please try again.'
-          : 'No connection to the AI service. Check the internet connection and try again.',
-      });
+      onboard(aborted ? 'The AI took too long to answer' : 'No connection to the AI service');
     }
   };
 
@@ -149,10 +157,33 @@ export function AiExplain({ assessment, vitals, env, missionDay, copilot }: AiEx
             </p>
           </>
         )}
-        {state.kind === 'error' && <p className="text-amber-200">{state.message}</p>}
+        {state.kind === 'onboard' && (
+          <div className="ai-answer space-y-2.5 leading-relaxed text-slate-100" data-testid="onboard-summary">
+            <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-200">
+              <Cpu className="h-3.5 w-3.5" aria-hidden="true" /> Onboard summary
+            </p>
+            <p className="font-semibold">{state.summary.headline}</p>
+            {state.summary.sections.map((sec) => (
+              <div key={sec.heading}>
+                <p className="text-xs font-semibold text-sky-200">{sec.heading}</p>
+                {sec.lines.length > 0 && (
+                  <ul className="mt-0.5 list-disc space-y-0.5 pl-5 text-slate-200">
+                    {sec.lines.map((l) => (
+                      <li key={l}>{l}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
+            <p className="text-[11px] text-cyan-200/90">
+              {state.reason}. The app wrote this summary on board at {state.at}, from your values and its own rules. Not
+              AI-generated. Guidance only, not a medical diagnosis.
+            </p>
+          </div>
+        )}
         <p className="mt-1 text-[11px] text-slate-500">
-          When you press the button, today&apos;s values (no name or personal details) are sent to Google Gemini to write the
-          explanation.
+          When you press the button online, today&apos;s values (no name or personal details) are sent to Google Gemini to write
+          the explanation. With no internet nothing is sent and the onboard summary is shown.
         </p>
       </div>
     </section>

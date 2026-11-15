@@ -8,6 +8,7 @@ import {
   type EnvironmentId,
 } from '../data/spaceHealthEngine';
 import { BioMatrixLogo } from './BioMatrixLogo';
+import { OnboardStatusChip } from './OnboardStatus';
 import { SourceTag } from './ui';
 
 const ENV_ICONS: Record<EnvironmentId, ReactNode> = {
@@ -103,6 +104,9 @@ export function Header({
         </div>
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
+          {/* Connection and offline-ready state */}
+          <OnboardStatusChip />
+
           {/* Check-in streak (gamification) */}
           <div
             className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs ${
